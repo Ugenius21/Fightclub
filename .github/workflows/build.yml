@@ -10,13 +10,36 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+
       - name: Xcode-Version
         run: xcodebuild -version
-      - name: App für den Simulator bauen
+
+      # Baut die App für echte iPhones, aber ohne Signatur. Die Signatur
+      # übernimmt beim Installieren z. B. Sideloadly mit deiner Apple-ID.
+      - name: App für das iPhone bauen (unsigniert)
         run: |
-          xcodebuild build \
+          xcodebuild archive \
             -project Fightclub.xcodeproj \
             -scheme Fightclub \
-            -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Fightclub.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: IPA-Datei erstellen
+        run: |
+          mkdir -p build/Payload
+          cp -R build/Fightclub.xcarchive/Products/Applications/Fightclub.app build/Payload/
+          cd build
+          zip -qry Fightclub.ipa Payload
+          ls -lh Fightclub.ipa
+
+      - name: IPA hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fightclub-ipa
+          path: build/Fightclub.ipa
+          retention-days: 30
