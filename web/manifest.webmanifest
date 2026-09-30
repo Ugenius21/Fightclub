@@ -1,0 +1,15 @@
+{
+  "name": "Fightclub",
+  "short_name": "Fightclub",
+  "description": "Trainingsfortschritt und Körpergewicht tracken",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111114",
+  "theme_color": "#111114",
+  "icons": [
+    { "src": "icons/icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }
+  ]
+}
