@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fightclub">
+  <meta name="theme-color" content="#0e0e10">
+  <title>Fightclub</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="backBtn" class="icon-btn off" aria-label="Zurück">‹</button>
+    <h1 id="title">Fightclub</h1>
+    <div id="topAction"></div>
+  </header>
+
+  <main id="view"></main>
+
+  <nav class="tabbar">
+    <button data-tab="plans" class="active"><span>🏋️</span>Pläne</button>
+    <button data-tab="calendar"><span>📅</span>Kalender</button>
+    <button data-tab="progress"><span>📈</span>Fortschritt</button>
+    <button data-tab="weight"><span>⚖️</span>Gewicht</button>
+  </nav>
+
+  <div id="sheet" class="sheet" hidden>
+    <div class="sheet-backdrop"></div>
+    <div class="sheet-card" id="sheetCard"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
