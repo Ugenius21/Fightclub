@@ -9,6 +9,6 @@
 // Bleiben die Felder leer, funktioniert die App ganz normal – nur ohne Login.
 
 window.FIGHTCLUB_CONFIG = {
-  supabaseUrl: 'sb_publishable_hM0-IU5HoBzwFVOfmptmvQ_LJoEqQZe',
-  supabaseKey: 'sb_secret_63_KO-jG4sS08DJ2Wg7Dcg_Sf0rA5zp',
+  supabaseUrl: 'qcdhilxhekzsfsxrqrwi.supabase.co',
+  supabaseKey: 'sb_publishable_hM0-IU5HoBzwFVOfmptmvQ_LJoEqQZe',
 };
