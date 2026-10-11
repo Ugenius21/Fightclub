@@ -7,7 +7,7 @@
    ========================================================= */
 
 /** Wird im Profil angezeigt – so lässt sich prüfen, ob die neueste Version geladen ist. */
-const APP_VERSION = '10';
+const APP_VERSION = '11';
 
 const STORE_KEY = 'fightclub-data';
 const DRAFT_KEY = 'fightclub-draft';

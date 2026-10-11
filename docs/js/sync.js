@@ -5,9 +5,20 @@
    (direkt über die REST-API, ohne zusätzliche Bibliothek)
    ========================================================= */
 
+/** Project URL tolerant einlesen: fehlendes https:// ergänzen, angehängte
+    API-Pfade entfernen und einen Dashboard-Link in die Projekt-Adresse umwandeln. */
+function normalizeUrl(raw) {
+  let u = String(raw || '').trim();
+  if (!u) return '';
+  const dash = u.match(/supabase\.com\/dashboard\/project\/([a-z0-9]+)/i);
+  if (dash) return `https://${dash[1]}.supabase.co`;
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u.replace(/^\/+/, '');
+  return u.replace(/\/(rest|auth)\/v1.*$/i, '').replace(/\/+$/, '');
+}
+
 const Sync = (() => {
   const cfg = window.FIGHTCLUB_CONFIG || {};
-  const baseUrl = String(cfg.supabaseUrl || '').trim().replace(/\/+$/, '');
+  const baseUrl = normalizeUrl(cfg.supabaseUrl);
   const apiKey = String(cfg.supabaseKey || '').trim();
   const SESSION_KEY = 'fightclub-session';
   const LAST_KEY = 'fightclub-lastsync';
