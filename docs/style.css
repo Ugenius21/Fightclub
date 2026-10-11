@@ -29,18 +29,28 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-html { overflow-x: hidden; touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* App-Gerüst: Kopfzeile · scrollbarer Inhalt · Tab-Leiste.
+   Die Seite selbst scrollt nie – so bleibt die Tab-Leiste auf dem iPhone
+   immer bündig am unteren Rand (kein Verrutschen durch Nachfedern,
+   Tastatur oder den Bereich am Home-Balken). */
+html {
+  height: 100%; overflow: hidden;
+  touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+  /* Falls iOS oben/unten einen Rand freilässt, hat er die Farbe von Kopfzeile bzw. Tab-Leiste. */
+  background: linear-gradient(var(--top-color, var(--red)) 0 50%, var(--white) 50% 100%);
+}
+:root:has(body.food-mode) { --top-color: var(--green); }
 
-html, body {
-  margin: 0;
-  min-height: 100%;
+body {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  margin: 0; overflow: hidden;
   color: var(--ink);
   font: 700 16px/1.35 var(--body);
   background-color: var(--paper);
   background-image: radial-gradient(rgba(23, 18, 15, .09) 1.3px, transparent 1.6px);
   background-size: 12px 12px;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior-y: none;
 }
 
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -56,7 +66,7 @@ button:focus { outline: none; }
 
 /* ---------- Kopfzeile ---------- */
 .topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: relative; flex: none; z-index: 20;
   display: grid; grid-template-columns: 52px 1fr 52px; align-items: center; gap: 4px;
   padding: calc(var(--safe-top) + 8px) 12px 10px;
   background-color: var(--red);
@@ -88,12 +98,16 @@ button:focus { outline: none; }
 }
 .top-chip:active { transform: translate(2px, 2px); box-shadow: none; }
 
-main { padding: 16px 16px calc(120px + var(--safe-bottom) + var(--kp-h)); max-width: 640px; margin: 0 auto; }
-body.workout-mode main { padding-bottom: calc(230px + var(--safe-bottom) + var(--kp-h)); }
+main {
+  flex: 1 1 auto; min-height: 0; width: 100%;
+  overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: 16px max(16px, calc((100% - 608px) / 2)) calc(28px + var(--kp-h));
+}
+body.workout-mode main { padding-bottom: calc(150px + var(--safe-bottom) + var(--kp-h)); }
 
 /* ---------- Tableiste ---------- */
 .tabbar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  position: relative; flex: none; z-index: 20;
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
   padding: 8px 8px calc(var(--safe-bottom) + 8px);
   background: var(--white); border-top: var(--border);
@@ -245,9 +259,10 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
 .ex-chip.full { background: var(--green); color: #fff; }
 .ex-chip.part { background: var(--yellow); }
 
-.ex-card { scroll-margin-top: calc(var(--topbar-h, 70px) + 74px); }
+.ex-card { scroll-margin-top: 12px; }
 
-#timerHolder { position: sticky; top: var(--topbar-h, 70px); z-index: 15; margin: -16px -16px 16px; }
+#timerHolder { flex: none; position: relative; z-index: 15; }
+#timerHolder:empty { display: none; }
 .wo-timer {
   display: flex; align-items: center; gap: 12px;
   padding: 8px 16px;

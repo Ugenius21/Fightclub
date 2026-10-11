@@ -208,9 +208,12 @@ async function shareFile(bytesOrText, name, mime) {
 const nav = { tab: 'plans', stack: [] };
 const current = () => nav.stack[nav.stack.length - 1] || { view: nav.tab };
 
-function go(view, params = {}) { nav.stack.push({ view, ...params }); render(); window.scrollTo(0, 0); }
-function back() { nav.stack.pop(); render(); window.scrollTo(0, 0); }
-function switchTab(tab) { nav.tab = tab; nav.stack = []; render(); window.scrollTo(0, 0); }
+/** Inhalt nach oben scrollen (die Seite selbst scrollt nicht, nur <main>). */
+const scrollTop = () => { $('#view').scrollTop = 0; };
+
+function go(view, params = {}) { nav.stack.push({ view, ...params }); render(); scrollTop(); }
+function back() { nav.stack.pop(); render(); scrollTop(); }
+function switchTab(tab) { nav.tab = tab; nav.stack = []; render(); scrollTop(); }
 
 $('#backBtn').addEventListener('click', back);
 $$('.tabbar button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -228,6 +231,7 @@ function render() {
   document.body.classList.toggle('workout-mode', c.view === 'workout');
   document.body.classList.toggle('food-mode', c.view === 'food');
   if (Keypad.isOpen() && Keypad.owner() !== c.view) Keypad.close();
+  if (c.view !== 'workout') $('#timerHolder').innerHTML = '';
   const views = { plans: viewPlans, plan: viewPlan, workout: viewWorkout, calendar: viewCalendar, progress: viewProgress, food: viewNutrition, profile: viewProfile };
   (views[c.view] || viewPlans)(c);
 }
@@ -880,7 +884,6 @@ function viewWorkout() {
   const doneSets = draft.entries.reduce((a, e) => a + e.sets.filter((s) => s.done).length, 0);
 
   v.innerHTML = `
-    <div id="timerHolder"></div>
     <div class="wo-head">
       <input type="date" class="field" id="wDate" value="${draft.date}" aria-label="Datum">
     </div>
@@ -909,9 +912,9 @@ function viewWorkout() {
         const r = el.getBoundingClientRect();
         const kp = $('#keypad').offsetHeight || 0;
         const bottomLimit = window.innerHeight - kp - 20;
-        if (r.bottom > bottomLimit) window.scrollBy({ top: r.bottom - bottomLimit + 40, behavior: 'smooth' });
+        if (r.bottom > bottomLimit) $('#view').scrollBy({ top: r.bottom - bottomLimit + 40, behavior: 'smooth' });
         const topLimit = $('.topbar').offsetHeight + (($('#woTimer') || {}).offsetHeight || 0) + 12;
-        if (r.bottom <= bottomLimit && r.top < topLimit) window.scrollBy({ top: r.top - topLimit - 10, behavior: 'smooth' });
+        if (r.bottom <= bottomLimit && r.top < topLimit) $('#view').scrollBy({ top: r.top - topLimit - 10, behavior: 'smooth' });
       });
     }
   };
@@ -1014,7 +1017,7 @@ function viewWorkout() {
       <button class="btn" id="mProg">📈 Fortschritt</button>
       <button class="btn danger" id="mDel">Aus diesem Training entfernen</button>
     `, () => {
-      $('#mUp').onclick = () => { const [x] = draft.entries.splice(ei, 1); draft.entries.unshift(x); saveDraft(); closeSheet(); render(); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+      $('#mUp').onclick = () => { const [x] = draft.entries.splice(ei, 1); draft.entries.unshift(x); saveDraft(); closeSheet(); render(); $('#view').scrollTo({ top: 0, behavior: 'smooth' }); };
       $('#mLater').onclick = () => { closeSheet(); $(`[data-later="${ei}"]`).click(); };
       $('#mOrder').onclick = () => { closeSheet(); workoutReorder(); };
       $('#mNote').onclick = () => notesSheet(e);
@@ -1530,7 +1533,7 @@ function viewProfile() {
       e.preventDefault();
       const { email, pw } = creds();
       $('#loginBtn').disabled = true; msg('Anmelden …');
-      try { await Sync.signIn(email, pw); toast('Willkommen zurück! 🥊'); render(); window.scrollTo(0, 0); }
+      try { await Sync.signIn(email, pw); toast('Willkommen zurück! 🥊'); render(); scrollTop(); }
       catch (err) { msg(err.message); $('#loginBtn').disabled = false; }
     };
     $('#signupBtn').onclick = async () => {
@@ -1539,7 +1542,7 @@ function viewProfile() {
       msg('Konto wird erstellt …');
       try {
         const loggedIn = await Sync.signUp(email, pw);
-        if (loggedIn) { toast('Konto erstellt! 🥊'); render(); window.scrollTo(0, 0); }
+        if (loggedIn) { toast('Konto erstellt! 🥊'); render(); scrollTop(); }
         else msg('Fast geschafft! Bestätige den Link in der E-Mail und melde dich dann hier an.');
       } catch (err) { msg(err.message); }
     };

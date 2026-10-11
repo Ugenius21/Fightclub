@@ -1,5 +1,5 @@
 // Hält die App offline verfügbar. Bei Änderungen an den Dateien VERSION erhöhen.
-const VERSION = 'fightclub-v5';
+const VERSION = 'fightclub-v6';
 const FILES = [
   './', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'js/data.js', 'js/sync.js', 'js/xlsx.js', 'js/scanner.js', 'js/food.js',
