@@ -1265,7 +1265,7 @@ function lineChart(el, points, color, unit) {
   const pid = 'p' + Math.random().toString(36).slice(2, 7);
 
   el.innerHTML = `
-    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img">
+    <svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img">
       <defs><pattern id="${pid}" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.3" fill="${color}" opacity=".45"/></pattern></defs>
       ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 4}" text-anchor="end">${fmtNum(t)}</text>`).join('')}
       <line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
@@ -1294,7 +1294,7 @@ function barChart(el, bars, goal, unit) {
   const bw = (W - L - R) / bars.length;
   const coords = bars.map((b, i) => [L + bw * i + bw / 2, py(b.y)]);
   el.innerHTML = `
-    <svg class="chart" viewBox="0 0 ${W} ${H}" role="img">
+    <svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img">
       ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 4}" text-anchor="end">${fmtNum(t, 0)}</text>`).join('')}
       ${bars.map((b, i) => b.y ? `<rect x="${L + bw * i + bw * .15}" y="${py(b.y)}" width="${bw * .7}" height="${H - B - py(b.y)}" rx="3" fill="${goal && b.y > goal * 1.05 ? '#e63027' : '#2fb344'}" stroke="#17120f" stroke-width="2"/>` : '').join('')}
       ${goal ? `<line x1="${L}" x2="${W - R}" y1="${py(goal)}" y2="${py(goal)}" stroke="#e63027" stroke-width="2.5" stroke-dasharray="7 5"/><text x="${W - R}" y="${py(goal) - 5}" text-anchor="end" style="fill:#e63027">Ziel</text>` : ''}
@@ -1320,8 +1320,8 @@ function diffCard(label, diff, unit, invert = false) {
 
 const progressState = { name: null, metric: 'max', tab: 'exercise' };
 const METRICS = {
-  max: { label: 'Max. Gewicht', calc: (sets) => Math.max(...sets.map((s) => s.w)) },
-  orm: { label: '1RM (geschätzt)', calc: (sets) => Math.max(...sets.map((s) => (s.r === 1 ? s.w : s.w * (1 + s.r / 30)))) },
+  max: { label: 'Max. kg', calc: (sets) => Math.max(...sets.map((s) => s.w)) },
+  orm: { label: '1RM', calc: (sets) => Math.max(...sets.map((s) => (s.r === 1 ? s.w : s.w * (1 + s.r / 30)))) },
   vol: { label: 'Volumen', calc: (sets) => sets.reduce((a, s) => a + s.w * s.r, 0) },
 };
 
@@ -1330,7 +1330,7 @@ function viewProgress() {
   const v = $('#view');
   v.innerHTML = `<div class="seg">
       <button data-ptab="exercise" class="${progressState.tab === 'exercise' ? 'on' : ''}">💪 Übungen</button>
-      <button data-ptab="weight" class="${progressState.tab === 'weight' ? 'on' : ''}">⚖️ Körpergewicht</button>
+      <button data-ptab="weight" class="${progressState.tab === 'weight' ? 'on' : ''}">⚖️ Gewicht</button>
     </div><div id="progView"></div>`;
   $$('[data-ptab]', v).forEach((b) => b.onclick = () => { progressState.tab = b.dataset.ptab; render(); });
   if (progressState.tab === 'weight') viewWeight($('#progView'));
@@ -1379,6 +1379,7 @@ function viewExerciseProgress(v) {
     ${[...points].reverse().map((p) => `<div class="row-item"><div class="grow"><div class="t">${fmtDateLong(p.date)}</div><div class="s">${esc(p.label)}</div>${notesOf[p.date] ? `<div class="s">💬 ${esc(notesOf[p.date])}</div>` : ''}</div><b style="font:400 22px var(--display)">${fmtNum(p.y)} kg</b></div>`).join('')}`;
 
   lineChart($('#chart'), points, color, 'kg');
+  if (progressState.metric === 'orm') $('#chart').insertAdjacentHTML('beforeend', '<p class="hint small center" style="margin:6px 0 0">1RM = geschätztes Maximalgewicht für 1 Wiederholung</p>');
   $('#exSel').onchange = (e) => { progressState.name = e.target.value; render(); };
   $$('[data-metric]', v).forEach((b) => b.onclick = () => { progressState.metric = b.dataset.metric; render(); });
 }

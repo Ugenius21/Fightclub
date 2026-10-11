@@ -143,7 +143,7 @@ function viewNutrition() {
   if (!foodState.date) foodState.date = todayStr();
   setHeader('Ernährung', `<button class="top-chip" id="scanTop" aria-label="Strichcode scannen">📷</button>`);
   const v = $('#view');
-  const tabs = [['diary', '📖 Tagebuch'], ['stats', '📊 Statistik'], ['foods', '🥫 Lebensmittel']];
+  const tabs = [['diary', '📖 Tagebuch'], ['stats', '📊 Statistik'], ['foods', '🥫 Produkte']];
   v.innerHTML = `<div class="seg">${tabs.map(([k, l]) => `<button data-ftab="${k}" class="${foodState.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div><div id="foodView"></div>`;
   $$('[data-ftab]', v).forEach((b) => b.onclick = () => { foodState.tab = b.dataset.ftab; render(); });
   $('#scanTop').onclick = () => openScanner(defaultMeal());

@@ -29,6 +29,8 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
+html { overflow-x: hidden; touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
 html, body {
   margin: 0;
   min-height: 100%;
@@ -164,11 +166,15 @@ body.workout-mode .tabbar { display: none; }
 .field:focus { box-shadow: 3px 3px 0 var(--ink); background: #fffbe9; }
 textarea.field { resize: none; min-height: 72px; }
 input[type="date"].field { min-height: 50px; text-align: left; }
-select.field { background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 36px; }
+select.field { max-width: 100%; min-width: 0; text-overflow: ellipsis; background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%); background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 36px; }
 .lbl { display: block; font-size: 14px; margin: 14px 2px 6px; }
 
 .seg { display: flex; gap: 4px; background: var(--white); border: var(--border); border-radius: 14px; padding: 4px; margin-bottom: 16px; box-shadow: 3px 3px 0 var(--ink); }
-.seg button { flex: 1; border: 2.5px solid transparent; background: none; border-radius: 10px; padding: 8px 2px 6px; font: 400 17px/1 var(--display); letter-spacing: .5px; color: var(--muted); }
+.seg button {
+  flex: 1 1 0; min-width: 0; border: 2.5px solid transparent; background: none; border-radius: 10px; padding: 8px 2px 6px;
+  font: 400 clamp(14px, 4.3vw, 17px)/1 var(--display); letter-spacing: .5px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .seg button.on { background: var(--yellow); border-color: var(--ink); color: var(--ink); }
 
 .dot { width: 16px; height: 16px; border-radius: 50%; flex: none; border: 2.5px solid var(--ink); display: inline-block; }
@@ -271,7 +277,7 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
 .last b { color: var(--ink); font-weight: 700; }
 
 .bubble {
-  position: relative; margin: 12px 0 6px 4px; padding: 8px 12px;
+  position: relative; margin: 14px 0 6px; padding: 8px 12px;
   background: #fffbe0; border: 2.5px solid var(--ink); border-radius: 14px; font-size: 14px;
   white-space: pre-wrap; overflow-wrap: anywhere;
 }
@@ -404,15 +410,15 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
 .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 16px; }
 .legend span { display: flex; align-items: center; gap: 6px; }
 
-.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .stat { background: var(--white); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 3px 3px 0 var(--ink); padding: 10px 12px 8px; }
-.stat .v { font: 400 28px/1.05 var(--display); letter-spacing: .5px; }
+.stat .v { font: 400 clamp(22px, 7vw, 28px)/1.05 var(--display); letter-spacing: .5px; overflow-wrap: anywhere; }
 .stat .k { font-size: 12px; color: var(--muted); }
 .stat .v.up { color: var(--green); }
 .stat .v.down { color: var(--red); }
 
 /* ---------- Diagramm ---------- */
-.chart { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.chart { width: 100%; max-width: 100%; height: auto; display: block; touch-action: pan-y; }
 .chart text { fill: var(--muted); font: 700 11px var(--body); }
 .chart .grid { stroke: var(--ink); stroke-opacity: .15; stroke-dasharray: 3 4; }
 .chart .axis { stroke: var(--ink); stroke-width: 2; }

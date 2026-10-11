@@ -14,7 +14,7 @@ Fightclub ist eine Fitness-App im Comic-Look. Damit verfolgst du deinen Fortschr
 - **K.O.-Bildschirm** nach dem Training mit Sätzen, Volumen, Dauer und **neuen Rekorden** 🏆.
 - **Fortschritt**: Diagramm pro Übung (max. Gewicht, geschätztes 1RM oder Volumen) mit Start, Aktuell, Bestwert und Steigerung.
 - **Kalender**: Trainingstage in der Farbe des Plans (z. B. Push = Rot, Beine = Blau). Hier kannst du auch Trainings nachtragen.
-- **Körpergewicht** mit Diagramm (1M / 3M / 6M / 1J / Alle), unter *Fortschritt → Körpergewicht*.
+- **Körpergewicht** mit Diagramm (1M / 3M / 6M / 1J / Alle), unter *Fortschritt → ⚖️ Gewicht*.
 - **Ernährung** als eigener Bereich wie bei MyFitnessPal: Kalorien-Tagebuch mit Mahlzeiten, **Strichcode-Scanner**, Lebensmittelsuche und Tageszielen (siehe unten).
 - **Excel-Export** (.xlsx) aller Daten zur Auswertung.
 - **Login per E-Mail**, damit dein Stand auf allen Geräten synchron ist (siehe unten).
@@ -91,7 +91,7 @@ Ein eigener Bereich (Tab **Ernährung**, grüne Kopfzeile) zum Kalorienzählen w
 - **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **⚡ Schnell-Eintrag** für reine Kalorienwerte.
 - **Ziele:** Auf die Bilanz tippen, um Kalorien- und Makroziele festzulegen (oder die Makros aus den Kalorien berechnen zu lassen).
 - **Statistik:** 14-Tage-Diagramm, Durchschnittswerte und die Verteilung von Eiweiß, Kohlenhydraten und Fett.
-- **Lebensmittel:** Deine eigenen und gescannten Produkte verwalten.
+- **Produkte:** Deine eigenen und gescannten Lebensmittel verwalten.
 
 Die Kamera fragt beim ersten Scan nach Erlaubnis. Wurde sie abgelehnt: *iPhone-Einstellungen → Safari → Kamera → Fragen/Erlauben*. Die Strichcode-Erkennung läuft komplett auf dem iPhone. Nur das Nachschlagen eines neuen Produkts braucht Internet.
 
@@ -159,6 +159,7 @@ docs/                           Web-App
 ├── js/scanner.js                 Strichcode-Scanner (Kamera/Foto)
 ├── vendor/                       Strichcode-Erkennung (barcode-detector + ZXing-C++ WebAssembly, MIT/Apache-2.0)
 └── fonts/                        Bangers & Comic Neue (SIL Open Font License)
+design/icon.svg                 Vorlage für das App-Icon (Seife im Comic-Look)
 supabase/setup.sql              Tabelle + Zugriffsregeln für den Sync
 Fightclub/
 ├── FightclubApp.swift          App-Einstieg und SwiftData-Container
