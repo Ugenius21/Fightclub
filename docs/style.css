@@ -474,3 +474,87 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
 .sync-dot.syncing { background: var(--yellow); animation: blink 1s infinite; }
 .sync-dot.error, .sync-dot.offline { background: var(--red); }
 @keyframes blink { 50% { opacity: .3; } }
+
+/* =========================================================
+   ERNÄHRUNG
+   ========================================================= */
+body.food-mode .topbar { background-color: var(--green); }
+
+.day-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.day-label {
+  position: relative; flex: 1; text-align: center;
+  font: 400 26px/1 var(--display); letter-spacing: 1px; padding: 9px 0 6px;
+  background: var(--white); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 2px 2px 0 var(--ink);
+}
+.day-label input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; border: 0; }
+
+.summary { display: block; width: 100%; text-align: left; font: inherit; color: inherit; }
+.summary:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--ink); }
+.big-left { font: 400 54px/1 var(--display); letter-spacing: 1px; color: var(--green); -webkit-text-stroke: 1px var(--ink); }
+.big-left.over { color: var(--red); }
+.equation { display: flex; align-items: flex-end; justify-content: space-between; gap: 4px; margin-top: 10px; text-align: center; font-size: 11px; color: var(--muted); }
+.equation span { flex: 1; }
+.equation span b { display: block; font: 400 22px/1.1 var(--display); color: var(--ink); }
+.equation .op { flex: none; font: 700 24px/1 var(--body); color: var(--ink); padding-bottom: 14px; }
+.macro-bars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+.mbar .mtop { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; color: var(--muted); }
+.mbar .mtop b { font: 400 17px/1 var(--display); color: var(--ink); }
+.mbar .mtop small { font: 700 10px var(--body); color: var(--muted); }
+.mbar i { display: block; height: 10px; margin-top: 4px; border: 2px solid var(--ink); border-radius: 6px; background: var(--soft); overflow: hidden; }
+.mbar i b { display: block; height: 100%; }
+
+.meal { padding-bottom: 12px; }
+.meal-head { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; }
+.meal-head .emoji { font-size: 24px; }
+.meal-head h3 { flex: 1; margin: 0; font: 400 25px/1 var(--display); letter-spacing: 1px; padding-top: 3px; }
+.meal-head b { font: 400 24px/1 var(--display); }
+.meal-head b small { font: 700 12px var(--body); color: var(--muted); }
+.food-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: none; border: 0; border-top: 2px dashed rgba(23, 18, 15, .18); padding: 10px 2px;
+}
+.food-row:active { background: var(--soft); }
+.food-row .t { font-size: 16px; }
+.food-row .s { font-size: 12px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.food-row b { font: 400 22px/1 var(--display); }
+.food-row .plus { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--yellow); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.copy-link { display: block; width: 100%; background: none; border: 2px dashed var(--ink); border-radius: 10px; padding: 8px; margin-top: 6px; font-size: 14px; color: var(--muted); }
+.meal-actions { display: flex; gap: 10px; margin-top: 10px; }
+.meal-actions .btn { flex: 1; margin: 0; }
+.ibtn.scan { width: 48px; height: auto; align-self: stretch; background: var(--yellow); font-size: 22px; }
+.res-title { margin: 16px 2px 4px; font-weight: 700; }
+.split { display: flex; height: 22px; border: 2.5px solid var(--ink); border-radius: 12px; overflow: hidden; }
+.split i { display: block; height: 100%; }
+.split i + i { border-left: 2px solid var(--ink); }
+.nut-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nut-grid label { font-size: 13px; }
+.nut-grid .field { margin-top: 4px; }
+
+/* Zusätze im Zahlenfeld */
+.kp-chiprow { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 8px; scrollbar-width: none; }
+.kp-chiprow::-webkit-scrollbar { display: none; }
+.kp-chiprow button { flex: none; border: 2.5px solid var(--ink); border-radius: 18px; background: var(--white); padding: 6px 11px 5px; font-size: 13px; white-space: nowrap; }
+.kp-chiprow button.on { background: var(--yellow); box-shadow: 2px 2px 0 var(--ink); }
+.kp-chiprow button:active { background: var(--soft); }
+.kp-preview { text-align: center; font-size: 14px; margin: 2px 0 8px; }
+.kp-preview b { font: 400 20px var(--display); letter-spacing: .5px; }
+.kp-del { display: block; margin: -2px auto 8px; background: none; border: 0; color: var(--red); font-size: 14px; }
+
+/* Scanner */
+.scanner { position: fixed; inset: 0; z-index: 90; background: #000; color: #fff; }
+.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-frame {
+  position: absolute; left: 8%; right: 8%; top: 34%; height: 24%;
+  border: 4px solid var(--yellow); border-radius: 18px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5);
+}
+.scan-frame i { position: absolute; left: 6%; right: 6%; top: 50%; height: 3px; background: var(--red); box-shadow: 0 0 10px var(--red); animation: scanline 1.6s ease-in-out infinite alternate; }
+@keyframes scanline { from { top: 12%; } to { top: 88%; } }
+.scanner.error .scan-frame { border-color: var(--red); }
+.scanner.error .scan-frame i { display: none; }
+.scan-top { position: absolute; left: 16px; right: 16px; top: calc(var(--safe-top) + 18px); text-align: center; }
+.scan-top b { display: block; font: 400 26px/1.1 var(--display); letter-spacing: 1px; color: var(--yellow); -webkit-text-stroke: 1px var(--ink); text-shadow: 2px 2px 0 var(--ink); }
+.scan-top span { display: inline-block; margin-top: 10px; background: rgba(0, 0, 0, .65); border-radius: 10px; padding: 6px 12px; font-size: 15px; }
+.scan-bottom { position: absolute; left: 16px; right: 16px; bottom: calc(var(--safe-bottom) + 22px); display: flex; gap: 10px; }
+.scan-bottom .btn { margin: 0; flex: 1; }
+.scan-bottom .btn.primary { flex: none; width: 64px; }

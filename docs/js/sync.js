@@ -203,8 +203,32 @@ const Sync = (() => {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') schedule(300); });
   window.addEventListener('online', () => schedule(300));
 
+  /** Prüft Schritt für Schritt, ob Login & Sync richtig eingerichtet sind. */
+  async function diagnose() {
+    if (!configured()) return [{ ok: false, text: 'In docs/config.js fehlen noch Project URL und Key.' }];
+    const out = [];
+    try {
+      await request('/auth/v1/settings');
+      out.push({ ok: true, text: 'Supabase erreichbar, Key gültig.' });
+    } catch (e) {
+      out.push({ ok: false, text: e.status === 401 || e.status === 403
+        ? 'Der Key wird abgelehnt – prüfe den anon/publishable Key in config.js.'
+        : `Supabase nicht erreichbar – prüfe die Project URL (${baseUrl}) und deine Internetverbindung.` });
+      return out;
+    }
+    try {
+      await request('/rest/v1/fightclub_data?select=user_id&limit=1', { token: session && session.access_token });
+      out.push({ ok: true, text: 'Tabelle für den Sync ist vorhanden.' });
+    } catch (e) {
+      out.push({ ok: false, text: 'Tabelle fehlt – führe supabase/setup.sql im SQL-Editor von Supabase aus.' });
+    }
+    out.push(session ? { ok: true, text: `Angemeldet als ${session.user.email}.` } : { ok: false, text: 'Noch nicht angemeldet – Profil → Anmelden bzw. Neues Konto erstellen.' });
+    if (session && state.status === 'error') out.push({ ok: false, text: 'Letzter Sync fehlgeschlagen: ' + state.error });
+    return out;
+  }
+
   return {
-    configured, user, state,
+    configured, user, state, diagnose,
     attach(h) { hooks = h; },
     onChange(fn) { listeners.push(fn); },
     signIn, signUp, signOut, recover, setPassword, handleRedirect, syncNow, schedule,

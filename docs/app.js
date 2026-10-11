@@ -226,8 +226,9 @@ function setHeader(title, actionHtml = '') {
 function render() {
   const c = current();
   document.body.classList.toggle('workout-mode', c.view === 'workout');
+  document.body.classList.toggle('food-mode', c.view === 'food');
   if (Keypad.isOpen() && Keypad.owner() !== c.view) Keypad.close();
-  const views = { plans: viewPlans, plan: viewPlan, workout: viewWorkout, calendar: viewCalendar, progress: viewProgress, body: viewBody, profile: viewProfile };
+  const views = { plans: viewPlans, plan: viewPlan, workout: viewWorkout, calendar: viewCalendar, progress: viewProgress, food: viewNutrition, profile: viewProfile };
   (views[c.view] || viewPlans)(c);
 }
 
@@ -457,8 +458,16 @@ const Keypad = (() => {
     if (o.onFocus) o.onFocus(field(), idx);
   }
 
+  /** Wert von außen setzen (z. B. Mengen-Knöpfe „100 g“). */
+  function set(v) {
+    if (!o) return;
+    fresh = true;
+    buf = '';
+    commit(v);
+  }
+
   return {
-    open, close, update,
+    open, close, update, set,
     isOpen: () => !!o,
     owner: () => o && o.owner,
     focusKey: (key) => { if (!o) return false; const i = o.fields.findIndex((f) => f.key === key); if (i < 0) return false; focus(i); return true; },
@@ -1309,7 +1318,7 @@ function diffCard(label, diff, unit, invert = false) {
    FORTSCHRITT
    ========================================================= */
 
-const progressState = { name: null, metric: 'max' };
+const progressState = { name: null, metric: 'max', tab: 'exercise' };
 const METRICS = {
   max: { label: 'Max. Gewicht', calc: (sets) => Math.max(...sets.map((s) => s.w)) },
   orm: { label: '1RM (geschätzt)', calc: (sets) => Math.max(...sets.map((s) => (s.r === 1 ? s.w : s.w * (1 + s.r / 30)))) },
@@ -1319,6 +1328,16 @@ const METRICS = {
 function viewProgress() {
   setHeader('Fortschritt');
   const v = $('#view');
+  v.innerHTML = `<div class="seg">
+      <button data-ptab="exercise" class="${progressState.tab === 'exercise' ? 'on' : ''}">💪 Übungen</button>
+      <button data-ptab="weight" class="${progressState.tab === 'weight' ? 'on' : ''}">⚖️ Körpergewicht</button>
+    </div><div id="progView"></div>`;
+  $$('[data-ptab]', v).forEach((b) => b.onclick = () => { progressState.tab = b.dataset.ptab; render(); });
+  if (progressState.tab === 'weight') viewWeight($('#progView'));
+  else viewExerciseProgress($('#progView'));
+}
+
+function viewExerciseProgress(v) {
   const names = new Map();
   sortedWorkouts().forEach((w) => w.entries.forEach((e) => { if (!names.has(norm(e.name))) names.set(norm(e.name), e.name); }));
   if (!names.size) {
@@ -1365,23 +1384,11 @@ function viewProgress() {
 }
 
 /* =========================================================
-   KÖRPER: GEWICHT & KALORIEN
+   KÖRPERGEWICHT (im Tab „Fortschritt“)
    ========================================================= */
 
-const bodyState = { tab: 'weight', range: 90 };
+const bodyState = { range: 90 };
 const RANGES = [[30, '1M'], [90, '3M'], [180, '6M'], [365, '1J'], [0, 'Alle']];
-
-function viewBody() {
-  setHeader('Körper');
-  const v = $('#view');
-  v.innerHTML = `<div class="seg">
-      <button data-btab="weight" class="${bodyState.tab === 'weight' ? 'on' : ''}">⚖️ Gewicht</button>
-      <button data-btab="food" class="${bodyState.tab === 'food' ? 'on' : ''}">🍗 Kalorien</button>
-    </div><div id="bodyView"></div>`;
-  $$('[data-btab]', v).forEach((b) => b.onclick = () => { bodyState.tab = b.dataset.btab; render(); });
-  if (bodyState.tab === 'food') viewFood($('#bodyView'));
-  else viewWeight($('#bodyView'));
-}
 
 const dateFieldHtml = (d) => `<input type="date" class="field" id="kpDate" value="${d}" style="margin-bottom:10px">`;
 function bindDateField(root, tmp) {
@@ -1395,7 +1402,7 @@ function weightEntry(date) {
   const existing = data.weights.find((w) => w.date === (date || todayStr()));
   const tmp = { kg: existing ? existing.kg : last ? last.kg : null, date: date || todayStr() };
   Keypad.open({
-    owner: 'body',
+    owner: 'progress',
     fields: [{ key: 'kg', label: 'Körpergewicht', unit: 'kg', decimals: 1, step: 0.1, get: () => tmp.kg, set: (x) => { tmp.kg = x; } }],
     title: () => '<b>⚖️ Körpergewicht</b>',
     extraHtml: () => dateFieldHtml(tmp.date),
@@ -1456,153 +1463,6 @@ function viewWeight(v) {
   });
 }
 
-function foodByDate() {
-  const m = {};
-  data.food.forEach((f) => {
-    const d = m[f.date] || (m[f.date] = { kcal: 0, p: 0, c: 0, f: 0, items: [] });
-    d.kcal += f.kcal || 0; d.p += f.p || 0; d.c += f.c || 0; d.f += f.f || 0;
-    d.items.push(f);
-  });
-  return m;
-}
-
-function foodEntry(date, rec) {
-  const tmp = rec ? { ...rec } : { kcal: null, p: null, c: null, f: null, date: date || todayStr() };
-  const mk = (key, label, unit, step) => ({ key, label, unit, decimals: 0, int: true, step, get: () => tmp[key], set: (x) => { tmp[key] = x == null ? null : Math.round(x); } });
-  Keypad.open({
-    owner: 'body',
-    chips: true,
-    fields: [mk('kcal', 'Kalorien', 'kcal', 50), mk('p', 'Eiweiß', 'g', 5), mk('c', 'Kohlenh.', 'g', 5), mk('f', 'Fett', 'g', 5)],
-    title: () => `<b>🍗 ${rec ? 'Eintrag ändern' : 'Mahlzeit eintragen'}</b>`,
-    extraHtml: () => dateFieldHtml(tmp.date),
-    onDraw: (root) => bindDateField(root, tmp),
-    okLabel: 'Speichern',
-    onCancel: () => {},
-    onDone: () => {
-      if (!tmp.kcal && !tmp.p && !tmp.c && !tmp.f) return;
-      if (rec) {
-        const r = data.food.find((x) => x.id === rec.id);
-        Object.assign(r, { date: tmp.date, kcal: tmp.kcal || 0, p: tmp.p || 0, c: tmp.c || 0, f: tmp.f || 0 });
-        touch(r);
-      } else {
-        data.food.push(touch({ id: uid(), date: tmp.date, kcal: tmp.kcal || 0, p: tmp.p || 0, c: tmp.c || 0, f: tmp.f || 0, src: 'manual' }));
-      }
-      save(); toast('Eingetragen 🍗'); render();
-    },
-  });
-}
-
-function viewFood(v) {
-  const days = foodByDate();
-  const today = todayStr();
-  const t = days[today] || { kcal: 0, p: 0, c: 0, f: 0, items: [] };
-  const goal = data.settings.kcalGoal || 0;
-  const pGoal = data.settings.proteinGoal || 0;
-  const pct = goal ? Math.min(100, (t.kcal / goal) * 100) : 0;
-  const bars = Array.from({ length: 14 }, (_, i) => { const d = addDays(today, i - 13); return { date: d, y: days[d] ? Math.round(days[d].kcal) : 0 }; });
-  const tracked = bars.filter((b) => b.y > 0);
-  const avg = tracked.length ? tracked.reduce((a, b) => a + b.y, 0) / tracked.length : null;
-  const dayList = Object.keys(days).sort().reverse().slice(0, 45);
-
-  v.innerHTML = `
-    <div class="panel">
-      <div class="row"><div class="grow"><div class="hint">Heute</div>
-        <div style="font:400 40px/1 var(--display)">${fmtNum(t.kcal, 0)} <span style="font-size:20px">/ ${fmtNum(goal, 0)} kcal</span></div></div>
-        <button class="start-btn fab" id="fAdd" aria-label="Mahlzeit eintragen" style="background:var(--green);color:#fff;text-shadow:2px 2px 0 var(--ink)">＋</button>
-      </div>
-      <div class="hp"><i class="${goal && t.kcal > goal ? 'over' : ''}" style="width:${pct}%"></i><span>${goal ? (t.kcal <= goal ? `noch ${fmtNum(goal - t.kcal, 0)} kcal` : `${fmtNum(t.kcal - goal, 0)} kcal drüber`) : ''}</span></div>
-      <div class="macros">
-        <div><b>${fmtNum(t.p, 0)}${pGoal ? `<small style="font-size:13px">/${pGoal}</small>` : ''}</b><span>Eiweiß (g)</span></div>
-        <div><b>${fmtNum(t.c, 0)}</b><span>Kohlenh. (g)</span></div>
-        <div><b>${fmtNum(t.f, 0)}</b><span>Fett (g)</span></div>
-      </div>
-    </div>
-    <button class="btn yellow" id="mfpImport">📥 MyFitnessPal importieren</button>
-    <input type="file" id="mfpFile" accept=".csv,text/csv,text/plain" multiple hidden>
-    <span class="label">Letzte 14 Tage</span>
-    <div class="panel" id="fChart"></div>
-    <div class="stats">
-      ${statCard('Ø Kalorien', avg ? `${fmtNum(avg, 0)} kcal` : '–')}
-      ${statCard('Tage im Ziel', tracked.length ? `${tracked.filter((b) => !goal || b.y <= goal * 1.05).length}/${tracked.length}` : '–')}
-    </div>
-    ${dayList.length ? `<span class="label">Tage</span>
-      ${dayList.map((d) => `<button class="row-item" data-fday="${d}"><div class="grow"><div class="t">${fmtDateLong(d)}</div><div class="s">E ${fmtNum(days[d].p, 0)} g · K ${fmtNum(days[d].c, 0)} g · F ${fmtNum(days[d].f, 0)} g${days[d].items.some((x) => x.src === 'mfp') ? ' · MyFitnessPal' : ''}</div></div><b style="font:400 22px var(--display)">${fmtNum(days[d].kcal, 0)}</b><span class="chev">›</span></button>`).join('')}` : ''}`;
-
-  barChart($('#fChart'), bars, goal, 'kcal');
-  $('#fAdd').onclick = () => foodEntry();
-  $('#mfpImport').onclick = () => mfpInfo();
-  $('#mfpFile').onchange = importMfp;
-  $$('[data-fday]', v).forEach((b) => b.onclick = () => foodDaySheet(b.dataset.fday));
-}
-
-function foodDaySheet(d) {
-  const day = foodByDate()[d];
-  if (!day) return;
-  openSheet(`<h2>${fmtDateLong(d)}</h2>
-    ${day.items.map((x) => `<div class="row-item"><div class="grow"><div class="t">${fmtNum(x.kcal, 0)} kcal ${x.src === 'mfp' ? '<span class="sticker" style="margin:0 0 0 6px">MyFitnessPal</span>' : ''}</div>
-      <div class="s">E ${fmtNum(x.p, 0)} g · K ${fmtNum(x.c, 0)} g · F ${fmtNum(x.f, 0)} g</div></div>
-      <button class="ibtn" data-fedit="${x.id}">✎</button><button class="ibtn" data-fdel="${x.id}">✕</button></div>`).join('')}
-    <button class="btn green" id="fAddDay">＋ Weitere Mahlzeit</button>`, (root) => {
-    $('#fAddDay').onclick = () => { closeSheet(); foodEntry(d); };
-    $$('[data-fedit]', root).forEach((b) => b.onclick = () => { closeSheet(); foodEntry(d, data.food.find((x) => x.id === b.dataset.fedit)); });
-    $$('[data-fdel]', root).forEach((b) => b.onclick = () => { removeRec('food', b.dataset.fdel); save(); closeSheet(); render(); });
-  });
-}
-
-function mfpInfo() {
-  openSheet(`
-    <h2>📥 MyFitnessPal</h2>
-    <p>MyFitnessPal hat keine offene Schnittstelle für andere Apps. Über den Daten-Export bekommst du deine Werte trotzdem in Fightclub:</p>
-    <ol style="padding-left:20px;font-weight:400">
-      <li>MyFitnessPal öffnen → <b>Mehr → Einstellungen → Daten exportieren</b> (dafür brauchst du MyFitnessPal Premium).</li>
-      <li>Du bekommst eine E-Mail mit einer ZIP-Datei. Speichere sie in der <b>Dateien-App</b> und tippe sie an, um sie zu entpacken.</li>
-      <li>Hier auf <b>CSV-Datei wählen</b> tippen und <b>Nutrition-Summary…csv</b> auswählen (optional auch <b>Measurement-Summary…csv</b> für dein Gewicht).</li>
-    </ol>
-    <p class="hint">Kalorien, Eiweiß, Kohlenhydrate und Fett werden pro Tag zusammengerechnet. Ein erneuter Import überschreibt die MyFitnessPal-Werte der jeweiligen Tage – deine eigenen Einträge bleiben erhalten.</p>
-    <button class="btn primary" id="mfpPick">CSV-Datei wählen</button>
-  `, () => { $('#mfpPick').onclick = () => { closeSheet(); $('#mfpFile') ? $('#mfpFile').click() : profileMfpFile().click(); }; });
-}
-
-function profileMfpFile() {
-  let input = $('#mfpFileGlobal');
-  if (!input) {
-    input = document.createElement('input');
-    input.type = 'file'; input.accept = '.csv,text/csv,text/plain'; input.multiple = true; input.hidden = true; input.id = 'mfpFileGlobal';
-    input.onchange = importMfp;
-    document.body.appendChild(input);
-  }
-  return input;
-}
-
-async function importMfp(e) {
-  const files = [...e.target.files];
-  e.target.value = '';
-  if (!files.length) return;
-  let days = 0, weights = 0;
-  const errors = [];
-  for (const file of files) {
-    try {
-      const res = MFP.parse(await file.text());
-      for (const [date, v] of Object.entries(res.food)) {
-        const id = 'mfp-' + date;
-        const rec = data.food.find((x) => x.id === id);
-        const vals = { date, kcal: Math.round(v.kcal), p: Math.round(v.p), c: Math.round(v.c), f: Math.round(v.f), src: 'mfp' };
-        if (rec) Object.assign(rec, vals); else data.food.push({ id, ...vals });
-        touch(rec || data.food[data.food.length - 1]);
-        days++;
-      }
-      for (const [date, kg] of Object.entries(res.weights)) {
-        const id = 'w-' + date;
-        if (!data.weights.find((w) => w.id === id)) { data.weights.push(touch({ id, date, kg })); weights++; }
-      }
-    } catch (err) { errors.push(`${file.name}: ${err.message}`); }
-  }
-  save();
-  render();
-  if (errors.length && !days && !weights) alert('Import fehlgeschlagen:\n' + errors.join('\n'));
-  else toast(`${days} Tage${weights ? ` · ${weights}× Gewicht` : ''} importiert`);
-}
-
 /* =========================================================
    PROFIL: KONTO, SYNC, EXPORT, EINSTELLUNGEN
    ========================================================= */
@@ -1641,6 +1501,7 @@ function viewProfile() {
       <div style="height:14px"></div>
       <div class="btn-row"><button class="btn blue small" id="syncBtn">⟳ Jetzt synchronisieren</button><button class="btn small" id="logoutBtn">Abmelden</button></div>`;
   }
+  if (Sync.configured()) account += `<button class="btn danger" id="diagBtn" style="color:var(--muted);font-size:17px;margin-top:6px">🔍 Verbindung prüfen</button>`;
 
   v.innerHTML = `
     <span class="label blue">Konto & Sync</span>
@@ -1648,7 +1509,6 @@ function viewProfile() {
 
     <span class="label">Daten</span>
     <button class="btn green" id="xlsxBtn">📊 Excel-Export (.xlsx)</button>
-    <button class="btn yellow" id="mfpBtn">📥 MyFitnessPal importieren</button>
     <button class="btn" id="exportBtn">💾 Sicherung exportieren</button>
     <button class="btn" id="importBtn">📂 Sicherung importieren</button>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -1658,11 +1518,7 @@ function viewProfile() {
       <div class="lbl" style="margin-top:0">Pause zwischen den Sätzen</div>
       <div class="seg" style="margin-bottom:6px">${[60, 90, 120, 180].map((s) => `<button data-rest-sec="${s}" class="${st.restSec === s ? 'on' : ''}">${fmtTime(s)}</button>`).join('')}</div>
       <label class="row" style="margin:12px 0"><input type="checkbox" id="soundChk" ${st.sound ? 'checked' : ''} style="width:22px;height:22px;accent-color:#e63027"><span>Ton am Ende der Pause</span></label>
-      <div class="btn-row">
-        <button class="btn small" id="kcalGoal">🔥 ${fmtNum(st.kcalGoal, 0)} kcal</button>
-        <button class="btn small" id="protGoal">🥩 ${fmtNum(st.proteinGoal, 0)} g Eiweiß</button>
-      </div>
-      <p class="hint small" style="margin-bottom:0">Tagesziele für Kalorien und Eiweiß</p>
+      <button class="btn small" id="goalsBtn">🎯 Ernährungsziele: ${fmtNum(st.kcalGoal, 0)} kcal</button>
     </div>
     <p class="hint center small">Fightclub 🥊 · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>`;
 
@@ -1694,36 +1550,32 @@ function viewProfile() {
     };
   }
   if ($('#syncBtn')) $('#syncBtn').onclick = () => Sync.syncNow();
+  if ($('#diagBtn')) $('#diagBtn').onclick = diagnoseSheet;
   if ($('#logoutBtn')) $('#logoutBtn').onclick = async () => {
     if (!confirm('Abmelden? Deine Daten bleiben auf diesem Gerät gespeichert.')) return;
     await Sync.signOut(); render();
   };
 
   $('#xlsxBtn').onclick = exportExcel;
-  $('#mfpBtn').onclick = () => { profileMfpFile(); mfpInfo(); };
   $('#exportBtn').onclick = exportBackup;
   $('#importBtn').onclick = () => $('#importFile').click();
   $('#importFile').onchange = importBackup;
   $$('[data-rest-sec]', v).forEach((b) => b.onclick = () => { st.restSec = Number(b.dataset.restSec); touchSettings(); save(); render(); });
   $('#soundChk').onchange = (e) => { st.sound = e.target.checked; touchSettings(); save(); if (st.sound) { unlockAudio(); beep(); } };
-  const goalPad = (key, label, unit, step) => {
-    const tmp = { v: st[key] };
-    Keypad.open({
-      owner: 'profile',
-      fields: [{ key, label, unit, decimals: 0, int: true, step, get: () => tmp.v, set: (x) => { tmp.v = x; } }],
-      okLabel: 'Speichern',
-      onCancel: () => {},
-      onDone: () => { if (tmp.v) { st[key] = tmp.v; touchSettings(); save(); render(); } },
-    });
-  };
-  $('#kcalGoal').onclick = () => goalPad('kcalGoal', 'Kalorienziel pro Tag', 'kcal', 50);
-  $('#protGoal').onclick = () => goalPad('proteinGoal', 'Eiweißziel pro Tag', 'g', 5);
+  $('#goalsBtn').onclick = goalsSheet;
 }
 
 Sync.onChange(() => {
   const el = $('#syncStatus');
   if (el) el.innerHTML = syncStatusHtml();
 });
+
+async function diagnoseSheet() {
+  openSheet(`<h2>🔍 Verbindung</h2><div id="diagList"><p class="hint">Prüfe …</p></div>`);
+  const checks = await Sync.diagnose();
+  const list = $('#diagList');
+  if (list) list.innerHTML = checks.map((c) => `<div class="row-item"><span style="font-size:22px">${c.ok ? '✅' : '❌'}</span><div class="grow">${esc(c.text)}</div></div>`).join('');
+}
 
 function passwordSheet() {
   openSheet(`<h2>Neues Passwort</h2>
@@ -1760,7 +1612,11 @@ function exportExcel() {
   }
   const weights = [...data.weights].sort((a, b) => a.date.localeCompare(b.date)).map((w) => [w.date, w.kg]);
   const days = foodByDate();
-  const food = Object.keys(days).sort().map((d) => [d, days[d].kcal, days[d].p, days[d].c, days[d].f, days[d].items.some((x) => x.src === 'mfp') ? 'MyFitnessPal' : 'Fightclub']);
+  const food = Object.keys(days).sort().map((d) => [d, days[d].kcal, days[d].p, days[d].c, days[d].f]);
+  const mealOrder = Object.fromEntries(MEALS.map((m, i) => [m[0], i]));
+  const meals = [...data.food]
+    .sort((a, b) => a.date.localeCompare(b.date) || mealOrder[entryMeal(a)] - mealOrder[entryMeal(b)])
+    .map((e) => [e.date, mealInfo(entryMeal(e))[1], entryName(e), e.brand || '', e.amount || null, e.amount ? e.unit || 'g' : '', e.kcal, e.p, e.c, e.f]);
   const notes = [...data.notes].sort((a, b) => a.name.localeCompare(b.name, 'de')).map((n) => [n.name, n.text]);
 
   const bytes = XLSX.build([
@@ -1777,8 +1633,12 @@ function exportExcel() {
       { header: 'Volumen (kg)', type: 'num', width: 13 }, { header: 'Dauer (min)', type: 'int', width: 12 }] },
     { name: 'Körpergewicht', rows: weights, columns: [{ header: 'Datum', type: 'date', width: 12 }, { header: 'Gewicht (kg)', type: 'num', width: 13 }] },
     { name: 'Ernährung', rows: food, columns: [
-      { header: 'Datum', type: 'date', width: 12 }, { header: 'Kalorien (kcal)', type: 'int', width: 15 }, { header: 'Eiweiß (g)', type: 'int', width: 11 },
-      { header: 'Kohlenhydrate (g)', type: 'int', width: 17 }, { header: 'Fett (g)', type: 'int', width: 9 }, { header: 'Quelle', width: 14 }] },
+      { header: 'Datum', type: 'date', width: 12 }, { header: 'Kalorien (kcal)', type: 'int', width: 15 }, { header: 'Eiweiß (g)', type: 'num', width: 11 },
+      { header: 'Kohlenhydrate (g)', type: 'num', width: 17 }, { header: 'Fett (g)', type: 'num', width: 9 }] },
+    { name: 'Mahlzeiten', rows: meals, columns: [
+      { header: 'Datum', type: 'date', width: 12 }, { header: 'Mahlzeit', width: 13 }, { header: 'Lebensmittel', width: 30 }, { header: 'Marke', width: 16 },
+      { header: 'Menge', type: 'int', width: 8 }, { header: 'Einheit', width: 8 }, { header: 'Kalorien (kcal)', type: 'int', width: 15 },
+      { header: 'Eiweiß (g)', type: 'num', width: 11 }, { header: 'Kohlenhydrate (g)', type: 'num', width: 17 }, { header: 'Fett (g)', type: 'num', width: 9 }] },
     { name: 'Notizen', rows: notes, columns: [{ header: 'Übung', width: 26 }, { header: 'Notiz', width: 60 }] },
   ]);
   shareFile(bytes, `fightclub-${todayStr()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

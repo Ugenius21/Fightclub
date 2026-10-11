@@ -1,6 +1,6 @@
 # Fightclub 🥊
 
-Fightclub ist eine Fitness-App im Comic-Look. Damit verfolgst du deinen Fortschritt im Krafttraining, dein Körpergewicht und deine Kalorien.
+Fightclub ist eine Fitness-App im Comic-Look. Damit verfolgst du deinen Fortschritt im Krafttraining, dein Körpergewicht und deine Ernährung.
 
 ## Funktionen
 
@@ -14,8 +14,8 @@ Fightclub ist eine Fitness-App im Comic-Look. Damit verfolgst du deinen Fortschr
 - **K.O.-Bildschirm** nach dem Training mit Sätzen, Volumen, Dauer und **neuen Rekorden** 🏆.
 - **Fortschritt**: Diagramm pro Übung (max. Gewicht, geschätztes 1RM oder Volumen) mit Start, Aktuell, Bestwert und Steigerung.
 - **Kalender**: Trainingstage in der Farbe des Plans (z. B. Push = Rot, Beine = Blau). Hier kannst du auch Trainings nachtragen.
-- **Körpergewicht** mit Diagramm (1M / 3M / 6M / 1J / Alle).
-- **Kalorien & Makros** mit Tagesziel, Fortschrittsbalken und 14-Tage-Diagramm, plus **MyFitnessPal-Import** (siehe unten).
+- **Körpergewicht** mit Diagramm (1M / 3M / 6M / 1J / Alle), unter *Fortschritt → Körpergewicht*.
+- **Ernährung** als eigener Bereich wie bei MyFitnessPal: Kalorien-Tagebuch mit Mahlzeiten, **Strichcode-Scanner**, Lebensmittelsuche und Tageszielen (siehe unten).
 - **Excel-Export** (.xlsx) aller Daten zur Auswertung.
 - **Login per E-Mail**, damit dein Stand auf allen Geräten synchron ist (siehe unten).
 
@@ -42,36 +42,58 @@ Updates kommen automatisch: Nach einer Änderung im Repo lädt die App beim näc
 
 ## 🔐 Login per E-Mail & Synchronisierung (einmalig einrichten)
 
-Ohne Einrichtung funktioniert die App normal, die Daten liegen dann nur auf dem jeweiligen Gerät. Für Login und Sync wird ein kostenloses [Supabase](https://supabase.com)-Projekt als Speicher genutzt (ca. 10 Minuten, einmalig):
+Ohne Einrichtung funktioniert die App normal, die Daten liegen dann nur auf dem jeweiligen Gerät. Für Login und Sync dient ein kostenloses [Supabase](https://supabase.com)-Projekt als Online-Speicher. Die Einrichtung dauert einmalig etwa 10 Minuten und geht am bequemsten am PC.
 
-1. Auf [supabase.com](https://supabase.com) kostenlos registrieren → **New project** (Name z. B. „fightclub“, Region Frankfurt).
-2. Links **SQL Editor** → den Inhalt von [`supabase/setup.sql`](supabase/setup.sql) einfügen → **Run**. Das legt die Tabelle an. Jeder Benutzer sieht nur seine eigenen Daten.
-3. **Authentication → URL Configuration** → bei *Site URL* die Adresse deiner App eintragen, z. B. `https://ugenius21.github.io/Fightclub/`. Dorthin führen die Links aus den Bestätigungs- und Passwort-Mails.
-   *Optional:* Unter **Authentication → Sign In / Providers → Email** „Confirm email“ ausschalten. Dann entfällt die Bestätigungs-Mail und du bist nach „Neues Konto erstellen“ sofort angemeldet.
-4. **Project Settings → API Keys** (bzw. *API*): die **Project URL** und den **anon/publishable key** kopieren.
-5. Auf GitHub die Datei [`docs/config.js`](docs/config.js) öffnen → Stift-Symbol → beide Werte eintragen → *Commit changes*:
+**Teil A – Supabase einrichten**
+
+1. Auf [supabase.com](https://supabase.com) → **Start your project** → kostenlos registrieren (z. B. mit deinem GitHub-Konto).
+2. **New project**: Name z. B. `fightclub`, ein Datenbank-Passwort vergeben (brauchst du später nicht), Region **Frankfurt (eu-central-1)** → **Create new project**. Ca. 1–2 Minuten warten.
+3. Links **SQL Editor** → **New query** → den kompletten Inhalt von [`supabase/setup.sql`](supabase/setup.sql) hineinkopieren → **Run**. Es sollte „Success“ erscheinen. Damit ist die Tabelle für deine Daten angelegt, und jeder Benutzer sieht nur seine eigenen Daten.
+4. Links **Authentication → Sign In / Providers → Email**: **„Confirm email“ ausschalten** → *Save*. *(Empfohlen: Dann brauchst du keine Bestätigungs-Mail und bist nach dem Registrieren sofort angemeldet.)*
+5. **Authentication → URL Configuration** → bei **Site URL** die Adresse deiner App eintragen, z. B. `https://ugenius21.github.io/Fightclub/` → *Save*. Dorthin führt der Link aus der „Passwort vergessen“-Mail.
+6. Zahnrad **Project Settings → API Keys** (bzw. *Data API*): zwei Werte kopieren:
+   - **Project URL**, z. B. `https://abcdefgh.supabase.co`
+   - **anon public key** (beginnt mit `eyJ…`) bzw. **publishable key** (beginnt mit `sb_publishable_…`)
+   
+   ⚠️ Niemals den **service_role**- bzw. **secret**-Key verwenden.
+
+**Teil B – Werte in die App eintragen**
+
+7. Auf GitHub die Datei [`docs/config.js`](docs/config.js) öffnen → Stift-Symbol (*Edit*) → die beiden Werte zwischen die Anführungszeichen setzen → **Commit changes**:
    ```js
    window.FIGHTCLUB_CONFIG = {
-     supabaseUrl: 'https://deinprojekt.supabase.co',
-     supabaseKey: 'eyJ…',   // anon / publishable key
+     supabaseUrl: 'https://abcdefgh.supabase.co',
+     supabaseKey: 'eyJhbGciOi…',
    };
    ```
-   Der anon-Key darf öffentlich im Repo stehen. Die Daten sind über Row Level Security pro Benutzer geschützt.
-6. In der App: **Profil → Neues Konto erstellen** (E-Mail + Passwort). Auf jedem weiteren Gerät einfach mit denselben Daten anmelden.
+   Der anon-/publishable-Key darf öffentlich im Repo stehen. Er erlaubt nur das, was die Regeln aus `setup.sql` zulassen.
+8. Nach ca. 1 Minute ist GitHub Pages aktualisiert. Fightclub auf dem iPhone **komplett schließen** (vom unteren Rand nach oben wischen und die App wegschieben) und neu öffnen.
 
-Die App synchronisiert automatisch nach jeder Änderung und beim Öffnen. Offline wird lokal gespeichert und später abgeglichen. Bearbeitest du auf zwei Geräten verschiedene Einträge, bleiben beide erhalten. Beim gleichen Eintrag gewinnt die neuere Änderung.
+**Teil C – Anmelden**
 
-*Hinweis:* Kostenlose Supabase-Projekte werden nach ca. einer Woche **ohne jede Nutzung** pausiert und lassen sich im Dashboard mit einem Klick wieder starten. Wer regelmäßig trainiert, merkt davon nichts.
+9. In der App **Profil** → E-Mail-Adresse und ein Passwort (mind. 6 Zeichen) eintippen → **Neues Konto erstellen**. Fertig: oben steht deine E-Mail mit grünem Punkt „Synchronisiert“.
+10. Auf jedem weiteren Gerät (iPad, zweites Handy, PC-Browser): App öffnen → **Profil** → dieselbe E-Mail und dasselbe Passwort → **Anmelden**. Deine Daten erscheinen automatisch.
 
-## 🍗 MyFitnessPal
+Mit **Profil → 🔍 Verbindung prüfen** zeigt die App Schritt für Schritt, ob alles stimmt (Key, Tabelle, Anmeldung) und was ggf. fehlt.
 
-MyFitnessPal bietet **keine offene Schnittstelle** für andere Apps; die API ist nur für ausgewählte Partner freigegeben. Fightclub liest deshalb den **Daten-Export** von MyFitnessPal ein:
+Die App synchronisiert automatisch nach jeder Änderung und beim Öffnen. Offline wird lokal gespeichert und später abgeglichen. Bearbeitest du auf zwei Geräten verschiedene Einträge, bleiben beide erhalten. Beim gleichen Eintrag gewinnt die neuere Änderung. Bereits vorhandene Daten auf dem iPhone werden bei der ersten Anmeldung mit hochgeladen.
 
-1. In MyFitnessPal: **Mehr → Einstellungen → Daten exportieren**. Dafür ist MyFitnessPal Premium nötig.
-2. Die ZIP-Datei aus der E-Mail in der **Dateien-App** speichern und antippen, um sie zu entpacken.
-3. In Fightclub: **Körper → Kalorien → MyFitnessPal importieren** (oder unter *Profil*) und `Nutrition-Summary….csv` wählen. Optional zusätzlich `Measurement-Summary….csv` für dein Körpergewicht.
+*Hinweise:* Lässt du „Confirm email“ eingeschaltet, kommt nach dem Registrieren eine Mail. Den Link darin antippen, danach in der App mit E-Mail und Passwort **Anmelden**. Kostenlose Supabase-Projekte werden nach ca. einer Woche **ohne jede Nutzung** pausiert und lassen sich im Dashboard mit einem Klick wieder starten. Wer regelmäßig trainiert, merkt davon nichts.
 
-Kalorien, Eiweiß, Kohlenhydrate und Fett werden pro Tag zusammengerechnet. Ein erneuter Import aktualisiert die MyFitnessPal-Tage, deine eigenen Einträge bleiben erhalten. Ohne Premium trägst du Mahlzeiten direkt in Fightclub über ＋ ein.
+## 🍎 Ernährung
+
+Ein eigener Bereich (Tab **Ernährung**, grüne Kopfzeile) zum Kalorienzählen wie bei MyFitnessPal:
+
+- **Tagebuch** mit Frühstück, Mittagessen, Abendessen und Snacks, oben die Bilanz **Ziel − Essen = Übrig** sowie Balken für Eiweiß, Kohlenhydrate und Fett. Mit ‹ › oder durch Tippen aufs Datum wechselst du den Tag.
+- **📷 Strichcode scannen:** Die Kamera erkennt den Strichcode auf der Verpackung. Die Nährwerte kommen aus [Open Food Facts](https://world.openfoodfacts.org), einer freien Datenbank mit sehr vielen deutschen Produkten. Danach nur noch die Menge wählen (Portion, 50 g, 100 g … oder eintippen) und **Hinzufügen**. Klappt die Live-Kamera nicht, geht es auch per **Foto** oder durch **Eintippen** der Ziffern.
+- **Unbekanntes Produkt?** Einmal selbst anlegen (Nährwerte pro 100 g von der Verpackung). Beim nächsten Scan wird es sofort erkannt, auch offline und auf allen Geräten.
+- **Suche:** Zuerst deine eigenen und zuletzt gegessenen Lebensmittel (sofort, offline), mit 🔍 zusätzlich online in Open Food Facts.
+- **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **⚡ Schnell-Eintrag** für reine Kalorienwerte.
+- **Ziele:** Auf die Bilanz tippen, um Kalorien- und Makroziele festzulegen (oder die Makros aus den Kalorien berechnen zu lassen).
+- **Statistik:** 14-Tage-Diagramm, Durchschnittswerte und die Verteilung von Eiweiß, Kohlenhydraten und Fett.
+- **Lebensmittel:** Deine eigenen und gescannten Produkte verwalten.
+
+Die Kamera fragt beim ersten Scan nach Erlaubnis. Wurde sie abgelehnt: *iPhone-Einstellungen → Safari → Kamera → Fragen/Erlauben*. Die Strichcode-Erkennung läuft komplett auf dem iPhone. Nur das Nachschlagen eines neuen Produkts braucht Internet.
 
 ## 📊 Excel
 
@@ -83,7 +105,8 @@ Kalorien, Eiweiß, Kohlenhydrate und Fett werden pro Tag zusammengerechnet. Ein 
 | Übungen | Pro Training und Übung: Sätze, max. Gewicht, Wdh. gesamt, Volumen, bestes 1RM |
 | Trainings | Pro Training: Plan, Anzahl Übungen/Sätze, Volumen, Dauer |
 | Körpergewicht | Datum, Gewicht |
-| Ernährung | Pro Tag: Kalorien, Eiweiß, Kohlenhydrate, Fett, Quelle |
+| Ernährung | Pro Tag: Kalorien, Eiweiß, Kohlenhydrate, Fett |
+| Mahlzeiten | Jeder Eintrag: Datum, Mahlzeit, Lebensmittel, Marke, Menge, Kalorien, Makros |
 | Notizen | Dauerhafte Notizen pro Übung |
 
 Datumswerte sind echte Excel-Daten. Filter und fixierte Kopfzeile sind schon gesetzt, sodass du direkt Pivot-Tabellen oder Diagramme bauen kannst.
@@ -94,7 +117,7 @@ Unter **Profil → Sicherung exportieren** speicherst du alle Daten als JSON-Dat
 
 ## Native iOS-App (optional, aufwendiger)
 
-Zusätzlich gibt es Fightclub als native SwiftUI-App mit dem ursprünglichen Funktionsumfang (Pläne, Training, Kalender, Fortschritt, Körpergewicht). Die neuen Funktionen der Web-App (Comic-Design, Login & Sync, Kalorien, Excel) gibt es nur in der Web-App. Die Installation ist deutlich umständlicher.
+Zusätzlich gibt es Fightclub als native SwiftUI-App mit dem ursprünglichen Funktionsumfang (Pläne, Training, Kalender, Fortschritt, Körpergewicht). Die neuen Funktionen der Web-App (Comic-Design, Login & Sync, Ernährung mit Scanner, Excel) gibt es nur in der Web-App. Die Installation ist deutlich umständlicher.
 
 Voraussetzungen: Xcode 16 oder neuer, iOS 17 oder neuer.
 
@@ -132,7 +155,9 @@ docs/                           Web-App
 ├── js/data.js                    Datenmodell & Zusammenführen für den Sync
 ├── js/sync.js                    Login per E-Mail + Synchronisierung (Supabase REST)
 ├── js/xlsx.js                    Excel-Export ohne externe Bibliothek
-├── js/mfp.js                     MyFitnessPal-/CSV-Import
+├── js/food.js                    Ernährung: Tagebuch, Suche, Open Food Facts
+├── js/scanner.js                 Strichcode-Scanner (Kamera/Foto)
+├── vendor/                       Strichcode-Erkennung (barcode-detector + ZXing-C++ WebAssembly, MIT/Apache-2.0)
 └── fonts/                        Bangers & Comic Neue (SIL Open Font License)
 supabase/setup.sql              Tabelle + Zugriffsregeln für den Sync
 Fightclub/

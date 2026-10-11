@@ -10,12 +10,12 @@
    ========================================================= */
 
 const FCData = (() => {
-  const COLLECTIONS = ['plans', 'workouts', 'weights', 'food', 'notes'];
+  const COLLECTIONS = ['plans', 'workouts', 'weights', 'food', 'foods', 'notes'];
 
-  const DEFAULT_SETTINGS = { restSec: 90, kcalGoal: 2500, proteinGoal: 150, sound: true, upd: 0 };
+  const DEFAULT_SETTINGS = { restSec: 90, kcalGoal: 2500, proteinGoal: 150, carbsGoal: 280, fatGoal: 80, sound: true, upd: 0 };
 
   function empty() {
-    return { v: 2, plans: [], workouts: [], weights: [], food: [], notes: [], settings: { ...DEFAULT_SETTINGS }, deleted: {} };
+    return { v: 2, plans: [], workouts: [], weights: [], food: [], foods: [], notes: [], settings: { ...DEFAULT_SETTINGS }, deleted: {} };
   }
 
   /** Bringt Daten jeder Version (auch v1 und Teildaten) in die aktuelle Form. */
