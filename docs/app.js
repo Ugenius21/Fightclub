@@ -7,23 +7,23 @@
    ========================================================= */
 
 /** Wird im Profil angezeigt – so lässt sich prüfen, ob die neueste Version geladen ist. */
-const APP_VERSION = '9';
+const APP_VERSION = '10';
 
 const STORE_KEY = 'fightclub-data';
 const DRAFT_KEY = 'fightclub-draft';
 
+// Gedämpfte, gut unterscheidbare Kategorie-Farben (für Plan-Markierungen und den Kalender)
 const COLORS = [
-  ['Rot', '#E53935'], ['Blau', '#1E88E5'], ['Grün', '#43A047'], ['Orange', '#FB8C00'], ['Lila', '#8E24AA'],
-  ['Türkis', '#00ACC1'], ['Pink', '#D81B60'], ['Gelb', '#FDD835'], ['Braun', '#6D4C41'], ['Grau', '#546E7A'],
+  ['Rot', '#C8414B'], ['Blau', '#2E6FBD'], ['Grün', '#2E8B57'], ['Orange', '#DB7A35'], ['Violett', '#7558A6'],
+  ['Petrol', '#1C8C96'], ['Magenta', '#B5527C'], ['Ocker', '#BF9324'], ['Braun', '#8A6A4D'], ['Grau', '#5F6B77'],
 ];
 
 const SAMPLE_PLANS = [
-  ['Push', '#E53935', ['Bankdrücken', 'Schrägbankdrücken', 'Butterfly', 'Schulterdrücken', 'Seitheben', 'Trizepsdrücken']],
-  ['Pull', '#43A047', ['Klimmzüge', 'Langhantelrudern', 'Latziehen', 'Face Pulls', 'Bizepscurls']],
-  ['Beine', '#1E88E5', ['Kniebeugen', 'Beinpresse', 'Rumänisches Kreuzheben', 'Beinstrecker', 'Beinbeuger', 'Wadenheben']],
+  ['Push', '#C8414B', ['Bankdrücken', 'Schrägbankdrücken', 'Butterfly', 'Schulterdrücken', 'Seitheben', 'Trizepsdrücken']],
+  ['Pull', '#2E8B57', ['Klimmzüge', 'Langhantelrudern', 'Latziehen', 'Face Pulls', 'Bizepscurls']],
+  ['Beine', '#2E6FBD', ['Kniebeugen', 'Beinpresse', 'Rumänisches Kreuzheben', 'Beinstrecker', 'Beinbeuger', 'Wadenheben']],
 ];
 
-const POW_WORDS = ['POW!', 'BAM!', 'WUMMS!', 'ZACK!', 'KRACH!', 'BOOM!', 'WHAM!'];
 
 /* =========================================================
    DATEN
@@ -147,24 +147,6 @@ function toast(msg) {
   setTimeout(() => t.remove(), 1900);
 }
 
-function pow(anchor) {
-  const r = anchor.getBoundingClientRect();
-  const el = document.createElement('div');
-  el.className = 'pow';
-  el.style.left = Math.min(window.innerWidth - 135, Math.max(5, r.left + r.width / 2 - 65)) + 'px';
-  el.style.top = Math.max(60, r.top - 85) + 'px';
-  const pts = [];
-  for (let i = 0; i < 24; i++) {
-    const a = (i / 24) * Math.PI * 2;
-    const rad = i % 2 ? 30 : 54;
-    pts.push(`${65 + Math.cos(a) * rad * 1.15},${55 + Math.sin(a) * rad * .95}`);
-  }
-  el.innerHTML = `<svg viewBox="0 0 130 110"><polygon points="${pts.join(' ')}" fill="#ffd23f" stroke="#17120f" stroke-width="3" stroke-linejoin="round"/></svg>
-    <span>${POW_WORDS[Math.floor(Math.random() * POW_WORDS.length)]}</span>`;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 800);
-}
-
 /* Kurzer Ton am Ende der Pause (iOS erlaubt Audio erst nach einem Tipp) */
 let audioCtx = null;
 function unlockAudio() {
@@ -218,6 +200,8 @@ function go(view, params = {}) { nav.stack.push({ view, ...params }); render(); 
 function back() { nav.stack.pop(); render(); scrollTop(); }
 function switchTab(tab) { nav.tab = tab; nav.stack = []; render(); scrollTop(); }
 
+$('#backBtn').innerHTML = ico('chevl');
+$$('[data-ico]').forEach((el) => { el.innerHTML = ico(el.dataset.ico); });
 $('#backBtn').addEventListener('click', back);
 $$('.tabbar button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
@@ -265,13 +249,13 @@ function bindColorPicker(root, onPick) {
   }));
 }
 
-/** Liste per Ziehen am Griff (≡) neu sortieren. */
+/** Liste per Ziehen am Griff neu sortieren. */
 function reorderSheet(title, items, onSave, extraHtml = '') {
   openSheet(`
     <h2>${esc(title)}</h2>
-    <p class="hint">Halte den Griff <b>≡</b> und ziehe die Übung an die gewünschte Stelle.</p>
+    <p class="hint">Halte den Griff rechts gedrückt und ziehe die Übung an die gewünschte Stelle.</p>
     <ul class="reorder" id="reorderList">
-      ${items.map((it, i) => `<li data-i="${i}"><span class="n">${i + 1}</span><span class="t">${esc(it)}</span><button class="handle" aria-label="Verschieben">≡</button></li>`).join('')}
+      ${items.map((it, i) => `<li data-i="${i}"><span class="n">${i + 1}</span><span class="t">${esc(it)}</span><button class="handle" aria-label="Verschieben">${ico('grip')}</button></li>`).join('')}
     </ul>
     ${extraHtml}
     <button class="btn primary" id="reorderSave" style="margin-top:16px">Übernehmen</button>
@@ -330,7 +314,10 @@ const Keypad = (() => {
   let buf = '';
 
   const field = () => o.fields[idx];
-  const setHeight = (h) => document.documentElement.style.setProperty('--kp-h', h + 'px');
+  const setHeight = (h) => {
+    document.documentElement.style.setProperty('--kp-h', h + 'px');
+    document.body.classList.toggle('kp-open', h > 0);
+  };
 
   function parse(s) {
     if (s === '' || s === ',') return null;
@@ -351,7 +338,8 @@ const Keypad = (() => {
     el.innerHTML = `<div class="kp-inner">
       <div class="kp-head">
         <div class="kp-title">${o.title ? o.title(f, idx) : `<b>${esc(f.label)}</b>`}</div>
-        ${o.onCancel ? '<button class="ibtn" data-k="cancel" aria-label="Abbrechen">✕</button>' : ''}
+        <span class="kp-rest" id="kpRest">${restBadge()}</span>
+        ${o.onCancel ? `<button class="ibtn" data-k="cancel" aria-label="Abbrechen">${ico('x')}</button>` : ''}
       </div>
       ${typeof o.extraHtml === 'function' ? o.extraHtml() : (o.extraHtml || '')}
       ${o.chips && many ? `<div class="kp-chips">${o.fields.map((x, i) => `<button data-chip="${i}" class="${i === idx ? 'on' : ''}">${esc(x.label)}<b>${x.get() == null ? '–' : fmtNum(x.get(), x.decimals ?? 1)}</b></button>`).join('')}</div>` : ''}
@@ -361,9 +349,9 @@ const Keypad = (() => {
         <button class="kp-step" data-k="plus">+${fmtNum(f.step, 2)}</button>
       </div>
       <div class="kp-grid">
-        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="back" class="muted-key">⌫</button>
+        <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="back" class="muted-key" aria-label="Löschen">${ico('backspace')}</button>
         <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
-        ${many ? '<button data-k="next" class="next">Weiter ›</button>' : '<button data-k="clear" class="next" style="background:var(--soft);color:var(--ink);text-shadow:none">C</button>'}
+        ${many ? '<button data-k="next" class="next">Weiter</button>' : '<button data-k="clear" class="next muted-key" style="background:#e2e7ec;border-color:var(--line);color:var(--ink)">C</button>'}
         <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
         <button data-k="comma" ${f.int ? 'disabled style="opacity:.3"' : ''}>,</button><button data-k="0">0</button>
         <button data-k="ok" class="ok" style="grid-column: span 2">${esc(o.okLabel || 'Fertig')}</button>
@@ -487,7 +475,7 @@ const Keypad = (() => {
    ========================================================= */
 
 function viewPlans() {
-  setHeader('Fightclub', `<button class="top-chip" id="addPlan">＋ Plan</button>`);
+  setHeader('Fightclub', `<button class="top-chip" id="addPlan">${ico('plus')}Plan</button>`);
   const v = $('#view');
   const today = todayStr();
 
@@ -503,35 +491,35 @@ function viewPlans() {
   }).join('');
 
   let html = `<div class="hero panel">
-    <h2>${weekCount ? `${weekCount} ${weekCount === 1 ? 'Kampf' : 'Kämpfe'} diese Woche!` : 'Bereit für den Kampf?'}</h2>
+    <h2>Diese Woche: <span class="num">${weekCount}</span> Training${weekCount === 1 ? '' : 's'}</h2>
     <div class="week">${week}</div>
   </div>`;
 
   if (draft) {
     html += `<button class="resume" id="resume">
-      <span style="font-size:34px">🥊</span>
-      <div class="grow"><div class="big">Kampf läuft: ${esc(planName(draft.planId))}</div>
-      <div class="small">${draft.started ? `<b id="resumeTime">${draft.pausedAt ? '⏸' : '⏱'} ${fmtClock(elapsedMs(draft))}</b> · ` : ''}Tippen zum Weitermachen</div></div>
-      <span class="big">›</span></button>`;
+      ${ico('timer')}
+      <div class="grow"><div class="big">Laufendes Training: ${esc(planName(draft.planId))}</div>
+      <div class="small">${draft.started ? `<b class="num" id="resumeTime">${fmtClock(elapsedMs(draft))}${draft.pausedAt ? ' (pausiert)' : ''}</b> · ` : ''}Tippen zum Fortsetzen</div></div>
+      <span class="chev">${ico('chevr')}</span></button>`;
   }
 
   if (!data.plans.length) {
-    html += `<div class="empty"><div class="big">🥊</div>
-      <p>Willkommen im Fightclub!<br>Leg deinen ersten Trainingsplan an, z. B. „Push“.</p></div>
+    html += `<div class="empty"><div class="big">${ico('training')}</div>
+      <p>Noch keine Trainingspläne.<br>Lege deinen ersten Plan an, z. B. „Push“.</p></div>
       <button class="btn primary" id="firstPlan">Plan erstellen</button>
       <button class="btn yellow" id="samples">Beispielpläne laden</button>`;
   } else {
     html += data.plans.map((p) => {
       const last = sortedWorkouts().find((w) => w.planId === p.id);
-      return `<div class="plan-card" style="background-color:${p.color}">
+      return `<div class="plan-card" style="--pc:${p.color}">
         <button class="info" data-plan="${p.id}">
           <div class="name">${esc(p.name)}</div>
           <span class="sticker">${p.exercises.length} Übung${p.exercises.length === 1 ? '' : 'en'}${last ? ' · zuletzt ' + fmtDate(last.date, false) : ''}</span>
         </button>
-        <button class="start-btn" data-start="${p.id}">Start!</button>
+        <button class="start-btn" data-start="${p.id}">${ico('play')}Starten</button>
       </div>`;
     }).join('');
-    html += `<button class="btn dashed" id="newPlan">＋ Neuer Plan</button>`;
+    html += `<button class="btn dashed" id="newPlan">${ico('plus')}Neuer Plan</button>`;
   }
 
   v.innerHTML = html;
@@ -593,7 +581,7 @@ function planEditor(plan) {
 function viewPlan({ planId }) {
   const plan = planById(planId);
   if (!plan) { nav.stack.pop(); render(); return; }
-  setHeader(plan.name, `<button class="top-chip" id="editPlan">✎</button>`);
+  setHeader(plan.name, `<button class="top-chip" id="editPlan" aria-label="Plan bearbeiten">${ico('edit')}</button>`);
   const v = $('#view');
 
   const exHtml = plan.exercises.map((ex, i) => {
@@ -603,19 +591,19 @@ function viewPlan({ planId }) {
       <span class="ex-num" style="background:${plan.color}">${i + 1}</span>
       <div class="grow"><div class="t">${esc(ex.name)}</div>
       <div class="s">${last ? `Zuletzt ${fmtDate(last.workout.date, false)}: ${setsSummary(last.entry.sets)}` : 'Noch nicht trainiert'}</div>
-      ${note ? `<div class="s">💬 ${esc(note)}</div>` : ''}</div>
-      <span class="chev">›</span></button>`;
+      ${note ? `<div class="s">Notiz: ${esc(note)}</div>` : ''}</div>
+      <span class="chev">${ico('chevr')}</span></button>`;
   }).join('');
 
   v.innerHTML = `
-    <div class="plan-card" style="background-color:${plan.color}">
+    <div class="plan-card" style="--pc:${plan.color}">
       <div class="info"><div class="name">${esc(plan.name)}</div><span class="sticker">${plan.exercises.length} Übungen</span></div>
-      <button class="start-btn" id="start">Start!</button>
+      <button class="start-btn" id="start">${ico('play')}Starten</button>
     </div>
     <div class="row"><span class="label">Übungen</span><span class="grow"></span>
-      ${plan.exercises.length > 1 ? '<button class="ibtn" id="reorder" aria-label="Reihenfolge ändern">⇅</button>' : ''}</div>
+      ${plan.exercises.length > 1 ? `<button class="ibtn" id="reorder" aria-label="Reihenfolge ändern">${ico('reorder')}</button>` : ''}</div>
     ${exHtml || '<div class="panel hint">Noch keine Übungen. Füge z. B. Bankdrücken oder Butterfly hinzu.</div>'}
-    <button class="btn dashed" id="addEx">＋ Übung hinzufügen</button>`;
+    <button class="btn dashed" id="addEx">${ico('plus')}Übung hinzufügen</button>`;
 
   $('#editPlan').onclick = () => planEditor(plan);
   $('#start').onclick = () => startWorkout(plan.id, todayStr());
@@ -634,7 +622,7 @@ function addExerciseSheet(onAdd) {
     <h2>Übung hinzufügen</h2>
     <div class="row">
       <input class="field grow" id="exName" placeholder="z. B. Bankdrücken" list="exList" autocomplete="off" enterkeyhint="done">
-      <button class="btn primary" id="exAdd" style="width:auto;padding:12px 18px 9px">＋</button>
+      <button class="btn primary" id="exAdd" style="width:auto;padding:0 16px" aria-label="Hinzufügen">${ico('plus')}</button>
     </div>
     <datalist id="exList">${known.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
     <p class="hint" id="exAdded">Tipp: Mit „Return“ kannst du direkt die nächste Übung eintippen.</p>
@@ -664,11 +652,11 @@ function exerciseMenu(plan, idx) {
     <h2>${esc(ex.name)}</h2>
     <label class="lbl">Name</label>
     <input class="field" id="exRename" value="${esc(ex.name)}" autocomplete="off">
-    <label class="lbl">📝 Notiz (z. B. Sitzposition, Einstellung, Griff)</label>
+    <label class="lbl">Notiz (z. B. Sitzposition, Einstellung, Griff)</label>
     <textarea class="field" id="exNote" rows="3" placeholder="z. B. Sitz Stufe 4, Lehne 2. Loch">${esc(getNote(ex.name))}</textarea>
     <div style="height:16px"></div>
     <button class="btn primary" id="exSave">Speichern</button>
-    <button class="btn" id="exProg">📈 Fortschritt ansehen</button>
+    <button class="btn" id="exProg">${ico('progress')}Fortschritt ansehen</button>
     <button class="btn danger" id="exDel">Aus Plan entfernen</button>
   `, () => {
     $('#exSave').onclick = () => {
@@ -750,12 +738,24 @@ function restHtml() {
   const left = Math.max(0, (rest.end - Date.now()) / 1000);
   const over = left <= 0;
   return `<div class="rest ${over ? 'over' : ''}" id="rest">
-    <div class="t">${over ? 'Los geht’s! 🥊' : fmtTime(Math.ceil(left))}${over ? '' : '<small>Pause</small>'}</div>
+    <div class="t">${over ? 'Pause beendet' : fmtTime(Math.ceil(left))}${over ? '' : '<small>Pause</small>'}</div>
     ${over ? '' : '<button data-rest="plus">+30</button><button data-rest="skip">Skip</button>'}
     <div class="bar" style="width:${over ? 100 : (1 - left / rest.total) * 100}%"></div>
   </div>`;
 }
+/* Bei offenem Zahlenfeld läuft die Pause klein in dessen Kopfzeile mit,
+   damit sie kein Eingabefeld verdeckt. */
+function restBadge() {
+  if (!rest.end || current().view !== 'workout') return '';
+  const left = Math.max(0, (rest.end - Date.now()) / 1000);
+  return left > 0 ? `${ico('timer')}${fmtTime(Math.ceil(left))}` : `${ico('check')}Pause beendet`;
+}
 function drawRest() {
+  const badge = $('#kpRest');
+  if (badge) {
+    badge.innerHTML = restBadge();
+    badge.classList.toggle('over', !!rest.overUntil);
+  }
   const holder = $('#restHolder');
   if (!holder) return;
   holder.innerHTML = restHtml();
@@ -790,16 +790,16 @@ function toggleTimer() {
 function timerHtml() {
   if (!draft) return '';
   if (!draft.isNew && !draft.started) {
-    return `<div class="wo-timer" id="woTimer"><span class="time">⏱ ${draft.dur ? fmtDur(draft.dur) : '–'}</span><span class="lbl2 grow">Dauer dieses Trainings</span></div>`;
+    return `<div class="wo-timer" id="woTimer"><span class="time">${ico('timer')}${draft.dur ? fmtDur(draft.dur) : '–'}</span><span class="lbl2 grow">Dauer dieses Trainings</span></div>`;
   }
   if (!draft.started) {
-    return `<div class="wo-timer" id="woTimer"><span class="time">⏱ 0:00</span><span class="lbl2 grow">Timer läuft noch nicht</span><button data-timer>▶ Start</button></div>`;
+    return `<div class="wo-timer" id="woTimer"><span class="time">${ico('timer')}0:00</span><span class="lbl2 grow">Timer läuft noch nicht</span><button data-timer>${ico('play')}Start</button></div>`;
   }
   const paused = !!draft.pausedAt;
   return `<div class="wo-timer ${paused ? 'paused' : ''}" id="woTimer">
-    <span class="time" id="woTime">⏱ ${fmtClock(elapsedMs(draft))}</span>
+    <span class="time">${ico('timer')}<span id="woTime">${fmtClock(elapsedMs(draft))}</span></span>
     <span class="lbl2 grow">${paused ? 'Pausiert' : 'Trainingszeit'}</span>
-    <button data-timer aria-label="${paused ? 'Timer fortsetzen' : 'Timer pausieren'}">${paused ? '▶ Weiter' : '⏸ Pause'}</button>
+    <button data-timer aria-label="${paused ? 'Timer fortsetzen' : 'Timer pausieren'}">${paused ? `${ico('play')}Weiter` : `${ico('pause')}Pause`}</button>
   </div>`;
 }
 function drawTimer() {
@@ -810,14 +810,14 @@ function drawTimer() {
   if (b) b.onclick = toggleTimer;
 }
 
-/* Ein Takt pro Sekunde für Trainings-Timer und „Kampf läuft“-Banner */
+/* Ein Takt pro Sekunde für Trainings-Timer und Hinweis auf das laufende Training */
 setInterval(() => {
   if (!draft || !draft.started) return;
   const t = fmtClock(elapsedMs(draft));
   const el = $('#woTime');
-  if (el) el.textContent = '⏱ ' + t;
+  if (el) el.textContent = t;
   const banner = $('#resumeTime');
-  if (banner) banner.textContent = draft.pausedAt ? '⏸ ' + t : '⏱ ' + t;
+  if (banner) banner.textContent = t + (draft.pausedAt ? ' (pausiert)' : '');
 }, 1000);
 
 function workoutFields() {
@@ -845,7 +845,7 @@ function valHtml(v, unit, decimals) {
 function viewWorkout() {
   if (!draft) { nav.stack.pop(); render(); return; }
   const color = planColor(draft.planId);
-  setHeader(planName(draft.planId), draft.entries.length > 1 ? `<button class="top-chip" id="woReorder" aria-label="Reihenfolge">⇅</button>` : '');
+  setHeader(planName(draft.planId), draft.entries.length > 1 ? `<button class="top-chip" id="woReorder" aria-label="Reihenfolge">${ico('reorder')}</button>` : '');
   const v = $('#view');
 
   const chips = draft.entries.map((e, ei) => {
@@ -862,24 +862,24 @@ function viewWorkout() {
         <button class="set-nr" data-setmenu="${ei}:${si}">${si + 1}</button>
         <button class="val ${s.ghost ? 'ghost' : ''} ${s.w == null ? 'empty-val' : ''}" data-f="${ei}:${si}:w">${valHtml(s.w, 'kg', 2)}</button>
         <button class="val ${s.ghost ? 'ghost' : ''} ${s.r == null ? 'empty-val' : ''}" data-f="${ei}:${si}:r">${valHtml(s.r, 'Wdh', 0)}</button>
-        <button class="chk" data-chk="${ei}:${si}" aria-label="Satz erledigt">✓</button>
+        <button class="chk" data-chk="${ei}:${si}" aria-label="Satz erledigt">${ico('check')}</button>
       </div>`).join('');
     return `<section class="panel ex-card" id="ex-${ei}">
       <div class="ex-top">
         <span class="ex-num" style="background:${color}">${ei + 1}</span>
         <h3 class="ex-name">${esc(e.name)}</h3>
         <div class="ex-actions">
-          <button class="ibtn ${perm || e.note ? 'on' : ''}" data-note="${ei}" aria-label="Notiz">📝</button>
-          <button class="ibtn" data-later="${ei}" aria-label="Später machen">⏭</button>
-          <button class="ibtn" data-exmenu="${ei}" aria-label="Mehr">⋯</button>
+          <button class="ibtn ${perm || e.note ? 'on' : ''}" data-note="${ei}" aria-label="Notiz">${ico('note')}</button>
+          <button class="ibtn" data-later="${ei}" aria-label="Später machen">${ico('skip')}</button>
+          <button class="ibtn" data-exmenu="${ei}" aria-label="Mehr">${ico('more')}</button>
         </div>
       </div>
-      ${perm ? `<div class="bubble">${esc(perm)}</div>` : ''}
+      ${perm ? `<div class="bubble"><small>Notiz</small>${esc(perm)}</div>` : ''}
       ${e.note ? `<div class="bubble today"><small>Heute</small>${esc(e.note)}</div>` : ''}
-      <div class="last">${last ? `Letztes Mal (${fmtDate(last.workout.date, false)}): <b>${setsSummary(last.entry.sets)}</b>${last.entry.note ? ` · „${esc(last.entry.note)}“` : ''}` : 'Erstes Training dieser Übung – zeig, was du kannst!'}</div>
-      <div class="sets-head"><span>Satz</span><span>Gewicht</span><span>Wdh.</span><span>✓</span></div>
+      <div class="last">${last ? `Letztes Mal (${fmtDate(last.workout.date, false)}): <b>${setsSummary(last.entry.sets)}</b>${last.entry.note ? ` · „${esc(last.entry.note)}“` : ''}` : 'Erstes Training dieser Übung – noch keine Vergleichswerte.'}</div>
+      <div class="sets-head"><span>Satz</span><span>Gewicht</span><span>Wdh.</span><span>Erl.</span></div>
       ${rows}
-      <button class="add-set" data-addset="${ei}">＋ Satz</button>
+      <button class="add-set" data-addset="${ei}">${ico('plus')}Satz</button>
     </section>`;
   }).join('');
 
@@ -892,13 +892,13 @@ function viewWorkout() {
     </div>
     ${draft.entries.length > 1 ? `<div class="ex-strip">${chips}</div>` : ''}
     ${cards || '<div class="panel hint">Dieser Plan hat noch keine Übungen.</div>'}
-    <button class="btn dashed" id="wAddEx">＋ Übung hinzufügen</button>
+    <button class="btn dashed" id="wAddEx">${ico('plus')}Übung hinzufügen</button>
     <div style="height:18px"></div>
     ${draft.isNew ? '<button class="btn danger" id="wDiscard">Training verwerfen</button>' : '<button class="btn danger" id="wDelete">Training löschen</button>'}
     <div id="restHolder"></div>
     <div class="wo-footer">
       <div class="clock">${doneSets}/${totalSets}<small>Sätze</small></div>
-      <button class="btn primary" id="wSave">${draft.isNew ? 'K.O. – Beenden!' : 'Speichern'}</button>
+      <button class="btn primary" id="wSave">${draft.isNew ? 'Training beenden' : 'Speichern'}</button>
     </div>`;
 
   drawRest();
@@ -959,11 +959,11 @@ function viewWorkout() {
     s.done = !s.done;
     if (s.done) {
       s.ghost = false;
-      pow(b);
       startRest();
     }
     saveDraft();
     render();
+    if (s.done) { const row = $(`[data-chk="${ei}:${si}"]`); if (row) row.closest('.set-row').classList.add('pulse'); }
   });
 
   $$('[data-jump]', v).forEach((b) => b.onclick = () => $(`#ex-${b.dataset.jump}`).scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -1001,7 +1001,7 @@ function viewWorkout() {
     saveDraft();
     Keypad.close();
     render();
-    toast(`${e.name} → später ⏭`);
+    toast(`${e.name} ans Ende verschoben`);
     const next = $(`#ex-${ei}`);
     if (next) next.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -1013,11 +1013,11 @@ function viewWorkout() {
     const e = draft.entries[ei];
     openSheet(`
       <h2>${esc(e.name)}</h2>
-      <button class="btn" id="mUp" ${ei === 0 ? 'disabled' : ''}>⬆ Nach vorne holen</button>
-      <button class="btn" id="mLater">⏭ Später machen (ans Ende)</button>
-      <button class="btn" id="mOrder">⇅ Reihenfolge ändern</button>
-      <button class="btn" id="mNote">📝 Notizen</button>
-      <button class="btn" id="mProg">📈 Fortschritt</button>
+      <button class="btn" id="mUp" ${ei === 0 ? 'disabled' : ''}>${ico('up')}Nach vorne holen</button>
+      <button class="btn" id="mLater">${ico('skip')}Später machen (ans Ende)</button>
+      <button class="btn" id="mOrder">${ico('reorder')}Reihenfolge ändern</button>
+      <button class="btn" id="mNote">${ico('note')}Notizen</button>
+      <button class="btn" id="mProg">${ico('progress')}Fortschritt</button>
       <button class="btn danger" id="mDel">Aus diesem Training entfernen</button>
     `, () => {
       $('#mUp').onclick = () => { const [x] = draft.entries.splice(ei, 1); draft.entries.unshift(x); saveDraft(); closeSheet(); render(); $('#view').scrollTo({ top: 0, behavior: 'smooth' }); };
@@ -1081,7 +1081,7 @@ function workoutReorder() {
 
 function notesSheet(entry) {
   openSheet(`
-    <h2>📝 ${esc(entry.name)}</h2>
+    <h2>${ico('note')}${esc(entry.name)}</h2>
     <label class="lbl">Dauerhafte Notiz – bleibt bei jedem Training stehen<br><span class="hint">z. B. Sitzposition, Einstellung, Griffbreite</span></label>
     <textarea class="field" id="nPerm" rows="3" placeholder="z. B. Sitz Stufe 4, Lehne 2. Loch">${esc(getNote(entry.name))}</textarea>
     <label class="lbl">Notiz für heute<br><span class="hint">z. B. Muskelgefühl, Tagesform – erscheint beim nächsten Mal unter „Letztes Mal“</span></label>
@@ -1137,16 +1137,16 @@ function finishWorkout() {
   const sets = entries.reduce((a, e) => a + e.sets.length, 0);
   const vol = entries.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.w * s.r, 0), 0);
   openSheet(`<div class="ko">
-    <h2>K.O.!</h2>
-    <p style="font-size:18px;margin:0 0 14px">${isNew ? 'Training gespeichert – starker Kampf!' : 'Training aktualisiert.'}</p>
+    <h2>${ico('check')}${isNew ? 'Training abgeschlossen' : 'Training aktualisiert'}</h2>
+    <p class="hint" style="margin:0 0 14px">${fmtDateLong(workout.date)} · ${esc(planName(workout.planId))}</p>
     <div class="stats">
       <div class="stat"><div class="v">${sets}</div><div class="k">Sätze</div></div>
       <div class="stat"><div class="v">${fmtNum(vol, 0)} kg</div><div class="k">Volumen</div></div>
-      ${workout.dur ? `<div class="stat"><div class="v">⏱ ${fmtDur(workout.dur)}</div><div class="k">Trainingszeit</div></div>` : ''}
+      ${workout.dur ? `<div class="stat"><div class="v">${fmtDur(workout.dur)}</div><div class="k">Trainingszeit</div></div>` : ''}
       <div class="stat"><div class="v">${entries.length}</div><div class="k">Übung${entries.length === 1 ? '' : 'en'}</div></div>
     </div>
-    ${prs.map((p) => `<div class="pr"><span style="font-size:28px">🏆</span><div><b>Neuer Rekord: ${esc(p.name)}</b><br><span class="small">${fmtNum(p.max, 2)} kg (vorher ${fmtNum(p.prev, 2)} kg)</span></div></div>`).join('')}
-    <button class="btn yellow" id="koOk" style="margin-top:8px">Weiter</button>
+    ${prs.map((p) => `<div class="pr">${ico('trophy')}<div><b>Neuer Bestwert: ${esc(p.name)}</b><br><span class="small num">${fmtNum(p.max, 2)} kg (vorher ${fmtNum(p.prev, 2)} kg, +${fmtNum(((p.max - p.prev) / p.prev) * 100, 1)} %)</span></div></div>`).join('')}
+    <button class="btn primary" id="koOk" style="margin-top:8px">Schließen</button>
   </div>`, () => { $('#koOk').onclick = closeSheet; });
 }
 
@@ -1183,9 +1183,9 @@ function viewCalendar() {
   $('#view').innerHTML = `
     <div class="panel">
       <div class="cal-head">
-        <button class="ibtn" id="prevM" aria-label="Vorheriger Monat">‹</button>
+        <button class="ibtn" id="prevM" aria-label="Vorheriger Monat">${ico('chevl')}</button>
         <h2>${MONTHS[m]} ${y}</h2>
-        <button class="ibtn" id="nextM" aria-label="Nächster Monat">›</button>
+        <button class="ibtn" id="nextM" aria-label="Nächster Monat">${ico('chevr')}</button>
       </div>
       <div class="cal-grid">${cells}</div>
       <div class="legend">${data.plans.map((p) => `<span><i class="dot" style="background:${p.color}"></i>${esc(p.name)}</span>`).join('')}</div>
@@ -1208,11 +1208,11 @@ function daySheet(ds) {
     ${ws.length ? ws.map((w) => `
       <button class="row-item" data-w="${w.id}">
         <div class="stripe" style="background:${planColor(w.planId)}"></div>
-        <div class="grow"><div class="t">${esc(planName(w.planId))}${w.dur ? ` · ⏱ ${fmtDur(w.dur)}` : ''}</div>
-        <div class="s">${w.entries.map((e) => esc(e.name)).join(', ')}</div></div><span class="chev">›</span>
+        <div class="grow"><div class="t">${esc(planName(w.planId))}${w.dur ? ` · <span class="num">${fmtDur(w.dur)}</span>` : ''}</div>
+        <div class="s">${w.entries.map((e) => esc(e.name)).join(', ')}</div></div><span class="chev">${ico('chevr')}</span>
       </button>`).join('') : '<p class="hint">An diesem Tag wurde nicht trainiert.</p>'}
     ${data.plans.length ? `<span class="label">Training nachtragen</span>
-      ${data.plans.map((p) => `<button class="row-item" data-new="${p.id}"><i class="dot" style="background:${p.color}"></i><div class="grow t">${esc(p.name)}</div><span class="chev">＋</span></button>`).join('')}` : ''}
+      ${data.plans.map((p) => `<button class="row-item" data-new="${p.id}"><i class="dot" style="background:${p.color}"></i><div class="grow t">${esc(p.name)}</div><span class="chev">${ico('plus')}</span></button>`).join('')}` : ''}
   `, (root) => {
     $$('[data-w]', root).forEach((b) => b.onclick = () => { closeSheet(); editWorkout(data.workouts.find((w) => w.id === b.dataset.w)); });
     $$('[data-new]', root).forEach((b) => b.onclick = () => { closeSheet(); startWorkout(b.dataset.new, ds); });
@@ -1245,6 +1245,8 @@ function bindChartTip(el, coords, W, describe) {
     let best = 0;
     coords.forEach(([cx], i) => { if (Math.abs(cx - x) < Math.abs(coords[best][0] - x)) best = i; });
     if (hl) { hl.setAttribute('cx', coords[best][0]); hl.setAttribute('cy', coords[best][1]); hl.setAttribute('visibility', 'visible'); }
+    const cross = $('.cross', el);
+    if (cross) { cross.setAttribute('x1', coords[best][0]); cross.setAttribute('x2', coords[best][0]); cross.setAttribute('visibility', 'visible'); }
     tip.classList.remove('hint');
     tip.innerHTML = describe(best);
   };
@@ -1252,9 +1254,23 @@ function bindChartTip(el, coords, W, describe) {
   svg.addEventListener('touchmove', (e) => pick(e.touches[0].clientX), { passive: true });
 }
 
+/** Lineare Regression (kleinste Quadrate) über Tage → Steigung pro Tag */
+function linearTrend(points) {
+  if (points.length < 3) return null;
+  const xs = points.map((p) => parseDate(p.date).getTime() / 86400000);
+  const ys = points.map((p) => p.y);
+  const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+  let sxy = 0, sxx = 0, syy = 0;
+  xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) ** 2; syy += (ys[i] - my) ** 2; });
+  if (!sxx) return null;
+  const slope = sxy / sxx;
+  const r2 = syy ? (sxy * sxy) / (sxx * syy) : 0;
+  return { slope, intercept: my - slope * mx, r2, n };
+}
+
 /** points: [{date, y, label}] */
 function lineChart(el, points, color, unit) {
-  const W = 340, H = 210, L = 40, R = 14, T = 14, B = 26;
+  const W = 340, H = 214, L = 42, R = 12, T = 22, B = 28;
   if (!points.length) { el.innerHTML = '<div class="empty hint">Noch keine Daten.</div>'; return; }
   const xs = points.map((p) => parseDate(p.date).getTime());
   let x0 = Math.min(...xs), x1 = Math.max(...xs);
@@ -1268,20 +1284,31 @@ function lineChart(el, points, color, unit) {
   const area = `${path}L${coords[coords.length - 1][0].toFixed(1)},${H - B}L${coords[0][0].toFixed(1)},${H - B}Z`;
   const labelIdx = points.length === 1 ? [0] : [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
   const anchor = (i) => points.length === 1 ? 'middle' : i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle';
-  const pid = 'p' + Math.random().toString(36).slice(2, 7);
+  const gid = 'g' + Math.random().toString(36).slice(2, 7);
+  const trend = linearTrend(points);
+  let trendLine = '';
+  if (trend) {
+    const ty = (t) => trend.intercept + trend.slope * (t / 86400000);
+    const clamp = (v) => Math.min(H - B, Math.max(T, py(v)));
+    trendLine = `<line x1="${px(x0)}" y1="${clamp(ty(x0))}" x2="${px(x1)}" y2="${clamp(ty(x1))}" stroke="var(--ink-2)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+  }
 
   el.innerHTML = `
     <svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img">
-      <defs><pattern id="${pid}" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.3" fill="${color}" opacity=".45"/></pattern></defs>
-      ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 4}" text-anchor="end">${fmtNum(t)}</text>`).join('')}
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".16"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+      <text x="${L - 6}" y="${T - 10}" text-anchor="end">[${unit}]</text>
+      ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 3.5}" text-anchor="end">${fmtNum(t)}</text>`).join('')}
+      <line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/>
       <line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
-      ${labelIdx.map((i) => `<text x="${coords[i][0]}" y="${H - 8}" text-anchor="${anchor(i)}">${fmtDate(points[i].date, false)}</text>`).join('')}
-      <path d="${area}" fill="url(#${pid})"/>
-      <path d="${path}" fill="none" stroke="#17120f" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
-      <path d="${path}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
-      ${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${points.length > 40 ? 2.5 : 4.5}" fill="#fffdf7" stroke="#17120f" stroke-width="2"/>`).join('')}
-      <circle class="hl" r="8" fill="#ffd23f" stroke="#17120f" stroke-width="2.5" visibility="hidden"/>
+      ${labelIdx.map((i) => `<line class="axis" x1="${coords[i][0]}" x2="${coords[i][0]}" y1="${H - B}" y2="${H - B + 4}"/><text x="${coords[i][0]}" y="${H - 9}" text-anchor="${anchor(i)}">${fmtDate(points[i].date, false)}</text>`).join('')}
+      <path d="${area}" fill="url(#${gid})"/>
+      ${trendLine}
+      <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${points.length > 40 ? 1.8 : 3}" fill="#fff" stroke="${color}" stroke-width="1.6"/>`).join('')}
+      <line class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="2 3" visibility="hidden"/>
+      <circle class="hl" r="5" fill="${color}" stroke="#fff" stroke-width="2" visibility="hidden"/>
     </svg>
+    <div class="chart-meta">n = ${points.length}${trend ? ` · Trend (lin. Regression): ${fmtSigned(trend.slope * 7, 2)} ${unit}/Woche · R² = ${fmtNum(trend.r2, 2)}` : ''}</div>
     <div class="chart-tip hint">Tippe ins Diagramm für Details</div>`;
 
   bindChartTip(el, coords, W, (i) => {
@@ -1292,32 +1319,41 @@ function lineChart(el, points, color, unit) {
 
 /** bars: [{date, y}] – Tagesbalken mit Ziel-Linie */
 function barChart(el, bars, goal, unit) {
-  const W = 340, H = 200, L = 40, R = 10, T = 14, B = 26;
+  const W = 340, H = 204, L = 42, R = 10, T = 22, B = 28;
   const max = Math.max(goal || 0, ...bars.map((b) => b.y), 1);
   const ticks = niceTicks(0, max);
   const y1 = ticks[ticks.length - 1];
   const py = (v) => T + (1 - v / y1) * (H - T - B);
   const bw = (W - L - R) / bars.length;
   const coords = bars.map((b, i) => [L + bw * i + bw / 2, py(b.y)]);
+  const step = Math.ceil(bars.length / 7);
   el.innerHTML = `
     <svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img">
-      ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 4}" text-anchor="end">${fmtNum(t, 0)}</text>`).join('')}
-      ${bars.map((b, i) => b.y ? `<rect x="${L + bw * i + bw * .15}" y="${py(b.y)}" width="${bw * .7}" height="${H - B - py(b.y)}" rx="3" fill="${goal && b.y > goal * 1.05 ? '#e63027' : '#2fb344'}" stroke="#17120f" stroke-width="2"/>` : '').join('')}
-      ${goal ? `<line x1="${L}" x2="${W - R}" y1="${py(goal)}" y2="${py(goal)}" stroke="#e63027" stroke-width="2.5" stroke-dasharray="7 5"/><text x="${W - R}" y="${py(goal) - 5}" text-anchor="end" style="fill:#e63027">Ziel</text>` : ''}
+      <text x="${L - 6}" y="${T - 10}" text-anchor="end">[${unit}]</text>
+      ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 3.5}" text-anchor="end">${fmtNum(t, 0)}</text>`).join('')}
+      ${bars.map((b, i) => b.y ? `<rect x="${L + bw * i + bw * .18}" y="${py(b.y)}" width="${bw * .64}" height="${H - B - py(b.y)}" rx="1.5" fill="${goal && b.y > goal * 1.05 ? 'var(--red)' : 'var(--teal)'}" opacity=".85"/>` : '').join('')}
+      ${goal ? `<line x1="${L}" x2="${W - R}" y1="${py(goal)}" y2="${py(goal)}" stroke="var(--ink-2)" stroke-width="1.2" stroke-dasharray="5 4"/><text x="${W - R}" y="${py(goal) - 5}" text-anchor="end" style="fill:var(--ink-2)">Ziel ${fmtNum(goal, 0)}</text>` : ''}
+      <line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/>
       <line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
-      ${bars.map((b, i) => i % 2 === bars.length % 2 ? '' : `<text x="${L + bw * i + bw / 2}" y="${H - 8}" text-anchor="middle">${parseDate(b.date).getDate()}</text>`).join('')}
+      ${bars.map((b, i) => (bars.length - 1 - i) % step ? '' : `<text x="${L + bw * i + bw / 2}" y="${H - 9}" text-anchor="middle">${fmtDate(b.date, false)}</text>`).join('')}
+      <circle class="hl" r="4" fill="var(--ink)" stroke="#fff" stroke-width="2" visibility="hidden"/>
     </svg>
     <div class="chart-tip hint">Tippe auf einen Balken für Details</div>`;
   bindChartTip(el, coords, W, (i) => `<b>${fmtNum(bars[i].y, 0)} ${unit}</b> · ${fmtDateLong(bars[i].date)}`);
 }
 
+/** Vorzeichen mit echtem Minuszeichen (−) wie in Messprotokollen */
+const fmtSigned = (n, d) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${fmtNum(Math.abs(n), d)}`;
+/** Einheit hinter einem Messwert kleiner absetzen: „82,4 kg“ → 82,4<small>kg</small> */
+const withUnit = (v) => String(v).replace(/^(.*\d)\s+([^\d\s]+)$/, '$1<small>$2</small>');
+
 function statCard(label, value, cls = '') {
-  return `<div class="stat"><div class="v ${cls}">${value}</div><div class="k">${label}</div></div>`;
+  return `<div class="stat"><div class="v ${cls}">${withUnit(value)}</div><div class="k">${label}</div></div>`;
 }
 function diffCard(label, diff, unit, invert = false) {
   if (diff == null) return statCard(label, '–');
   const good = invert ? diff < 0 : diff > 0;
-  return statCard(label, `${diff > 0 ? '+' : ''}${fmtNum(diff)} ${unit}`, diff === 0 ? '' : good ? 'up' : 'down');
+  return statCard(label, `${fmtSigned(diff)} ${unit}`, diff === 0 ? '' : good ? 'up' : 'down');
 }
 
 /* =========================================================
@@ -1335,8 +1371,8 @@ function viewProgress() {
   setHeader('Fortschritt');
   const v = $('#view');
   v.innerHTML = `<div class="seg">
-      <button data-ptab="exercise" class="${progressState.tab === 'exercise' ? 'on' : ''}">💪 Übungen</button>
-      <button data-ptab="weight" class="${progressState.tab === 'weight' ? 'on' : ''}">⚖️ Gewicht</button>
+      <button data-ptab="exercise" class="${progressState.tab === 'exercise' ? 'on' : ''}">Übungen</button>
+      <button data-ptab="weight" class="${progressState.tab === 'weight' ? 'on' : ''}">Körpergewicht</button>
     </div><div id="progView"></div>`;
   $$('[data-ptab]', v).forEach((b) => b.onclick = () => { progressState.tab = b.dataset.ptab; render(); });
   if (progressState.tab === 'weight') viewWeight($('#progView'));
@@ -1347,7 +1383,7 @@ function viewExerciseProgress(v) {
   const names = new Map();
   sortedWorkouts().forEach((w) => w.entries.forEach((e) => { if (!names.has(norm(e.name))) names.set(norm(e.name), e.name); }));
   if (!names.size) {
-    v.innerHTML = `<div class="empty"><div class="big">📈</div><p>Sobald du ein Training gespeichert hast, siehst du hier deine Steigerung pro Übung.</p></div>`;
+    v.innerHTML = `<div class="empty"><div class="big">${ico('progress')}</div><p>Sobald du ein Training gespeichert hast, siehst du hier die Entwicklung pro Übung.</p></div>`;
     return;
   }
   const list = [...names.values()].sort((a, b) => a.localeCompare(b, 'de'));
@@ -1371,18 +1407,18 @@ function viewExerciseProgress(v) {
 
   v.innerHTML = `
     <select class="field" id="exSel">${list.map((n) => `<option ${norm(n) === key ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
-    ${note ? `<div class="bubble">${esc(note)}</div>` : ''}
+    ${note ? `<div class="bubble"><small>Notiz</small>${esc(note)}</div>` : ''}
     <div style="height:14px"></div>
     <div class="seg">${Object.entries(METRICS).map(([k, mm]) => `<button data-metric="${k}" class="${k === progressState.metric ? 'on' : ''}">${mm.label}</button>`).join('')}</div>
     <div class="panel" id="chart"></div>
     <div class="stats">
       ${statCard('Start', `${fmtNum(first)} kg`)}
       ${statCard('Aktuell', `${fmtNum(lastV)} kg`)}
-      ${statCard('Bestwert 🏆', `${fmtNum(Math.max(...ys))} kg`)}
+      ${statCard('Bestwert', `${fmtNum(Math.max(...ys))} kg`)}
       ${diffCard('Steigerung', points.length > 1 ? +(lastV - first).toFixed(1) : null, 'kg')}
     </div>
     <span class="label">Verlauf</span>
-    ${[...points].reverse().map((p) => `<div class="row-item"><div class="grow"><div class="t">${fmtDateLong(p.date)}</div><div class="s">${esc(p.label)}</div>${notesOf[p.date] ? `<div class="s">💬 ${esc(notesOf[p.date])}</div>` : ''}</div><b style="font:400 22px var(--display)">${fmtNum(p.y)} kg</b></div>`).join('')}`;
+    ${[...points].reverse().map((p) => `<div class="row-item"><div class="grow"><div class="t">${fmtDateLong(p.date)}</div><div class="s">${esc(p.label)}</div>${notesOf[p.date] ? `<div class="s">Notiz: ${esc(notesOf[p.date])}</div>` : ''}</div><b class="num" style="font-size:16px">${fmtNum(p.y)} kg</b></div>`).join('')}`;
 
   lineChart($('#chart'), points, color, 'kg');
   if (progressState.metric === 'orm') $('#chart').insertAdjacentHTML('beforeend', '<p class="hint small center" style="margin:6px 0 0">1RM = geschätztes Maximalgewicht für 1 Wiederholung</p>');
@@ -1411,7 +1447,7 @@ function weightEntry(date) {
   Keypad.open({
     owner: 'progress',
     fields: [{ key: 'kg', label: 'Körpergewicht', unit: 'kg', decimals: 1, step: 0.1, get: () => tmp.kg, set: (x) => { tmp.kg = x; } }],
-    title: () => '<b>⚖️ Körpergewicht</b>',
+    title: () => '<b>Körpergewicht</b>',
     extraHtml: () => dateFieldHtml(tmp.date),
     onDraw: (root) => bindDateField(root, tmp),
     okLabel: 'Speichern',
@@ -1423,7 +1459,7 @@ function weightEntry(date) {
       const rec = data.weights.find((w) => w.id === id);
       if (rec) { rec.kg = tmp.kg; touch(rec); }
       else data.weights.push(touch({ id, date: d, kg: tmp.kg }));
-      save(); toast('Gewicht gespeichert 💪'); render();
+      save(); toast('Gewicht gespeichert'); render();
     },
   });
 }
@@ -1440,9 +1476,9 @@ function viewWeight(v) {
 
   v.innerHTML = `
     <div class="panel row">
-      <div class="grow"><div class="hint">Aktuell</div><div style="font:400 44px/1 var(--display)">${lastW ? fmtNum(lastW.kg) + ' kg' : '–'}</div>
+      <div class="grow"><div class="hint">Aktuell</div><div class="num readout">${lastW ? withUnit(fmtNum(lastW.kg) + ' kg') : '–'}</div>
       ${lastW ? `<div class="hint small">${fmtDateLong(lastW.date)}</div>` : ''}</div>
-      <button class="start-btn fab" id="wAdd" aria-label="Gewicht eintragen" style="background:var(--blue);color:#fff;text-shadow:2px 2px 0 var(--ink)">＋</button>
+      <button class="start-btn fab" id="wAdd" aria-label="Gewicht eintragen">${ico('plus')}</button>
     </div>
     ${all.length ? `
       <div class="seg">${RANGES.map(([d, l]) => `<button data-range="${d}" class="${d === bodyState.range ? 'on' : ''}">${l}</button>`).join('')}</div>
@@ -1454,15 +1490,15 @@ function viewWeight(v) {
         ${statCard('Maximum', ys.length ? `${fmtNum(Math.max(...ys))} kg` : '–')}
       </div>
       <span class="label">Einträge</span>
-      ${[...all].reverse().slice(0, 60).map((w) => `<button class="row-item" data-wid="${w.id}"><div class="grow t">${fmtDateLong(w.date)}</div><b style="font:400 22px var(--display)">${fmtNum(w.kg)} kg</b><span class="chev">›</span></button>`).join('')}
-    ` : `<div class="empty"><div class="big">⚖️</div><p>Trag dein Gewicht regelmäßig ein, um den Verlauf zu sehen.</p></div>`}`;
+      ${[...all].reverse().slice(0, 60).map((w) => `<button class="row-item" data-wid="${w.id}"><div class="grow t">${fmtDateLong(w.date)}</div><b class="num" style="font-size:16px">${fmtNum(w.kg)} kg</b><span class="chev">${ico('chevr')}</span></button>`).join('')}
+    ` : `<div class="empty"><div class="big">${ico('scale')}</div><p>Trag dein Gewicht regelmäßig ein, um den Verlauf zu sehen.</p></div>`}`;
 
   if (all.length) lineChart($('#wChart'), shown.map((w) => ({ date: w.date, y: w.kg })), '#1E88E5', 'kg');
   $('#wAdd').onclick = () => weightEntry();
   $$('[data-range]', v).forEach((b) => b.onclick = () => { bodyState.range = Number(b.dataset.range); render(); });
   $$('[data-wid]', v).forEach((b) => b.onclick = () => {
     const w = data.weights.find((x) => x.id === b.dataset.wid);
-    openSheet(`<h2>${fmtDateLong(w.date)}</h2><p style="font:400 40px var(--display);margin:6px 0 16px">${fmtNum(w.kg)} kg</p>
+    openSheet(`<h2>${fmtDateLong(w.date)}</h2><p class="num" style="font-size:30px;font-weight:500;margin:6px 0 16px">${fmtNum(w.kg)} kg</p>
       <button class="btn" id="wEdit">Ändern</button><button class="btn danger" id="wDel">Löschen</button>`, () => {
       $('#wEdit').onclick = () => { closeSheet(); weightEntry(w.date); };
       $('#wDel').onclick = () => { removeRec('weights', w.id); save(); closeSheet(); render(); };
@@ -1504,20 +1540,20 @@ function viewProfile() {
       <button class="btn danger" id="forgotBtn" style="color:var(--muted);font-size:18px">Passwort vergessen?</button>
       <p class="hint small center" id="authMsg"></p>`;
   } else {
-    account = `<div class="row"><span style="font-size:34px">🥊</span><div class="grow"><div class="t">${esc(u.email)}</div><div class="hint small" id="syncStatus">${syncStatusHtml()}</div></div></div>
+    account = `<div class="row"><span class="emoji-big">${ico('profile')}</span><div class="grow"><div class="t">${esc(u.email)}</div><div class="hint small" id="syncStatus">${syncStatusHtml()}</div></div></div>
       <div style="height:14px"></div>
-      <div class="btn-row"><button class="btn blue small" id="syncBtn">⟳ Jetzt synchronisieren</button><button class="btn small" id="logoutBtn">Abmelden</button></div>`;
+      <div class="btn-row"><button class="btn blue small" id="syncBtn">${ico('refresh')}Synchronisieren</button><button class="btn small" id="logoutBtn">${ico('logout')}Abmelden</button></div>`;
   }
-  if (Sync.configured()) account += `<button class="btn danger" id="diagBtn" style="color:var(--muted);font-size:17px;margin-top:6px">🔍 Verbindung prüfen</button>`;
+  if (Sync.configured()) account += `<button class="btn danger" id="diagBtn" style="color:var(--accent);margin-top:6px">${ico('search')}Verbindung prüfen</button>`;
 
   v.innerHTML = `
     <span class="label blue">Konto & Sync</span>
     <div class="panel">${account}</div>
 
     <span class="label">Daten</span>
-    <button class="btn green" id="xlsxBtn">📊 Excel-Export (.xlsx)</button>
-    <button class="btn" id="exportBtn">💾 Sicherung exportieren</button>
-    <button class="btn" id="importBtn">📂 Sicherung importieren</button>
+    <button class="btn" id="xlsxBtn">${ico('table')}Excel-Export (.xlsx)</button>
+    <button class="btn" id="exportBtn">${ico('download')}Sicherung exportieren</button>
+    <button class="btn" id="importBtn">${ico('upload')}Sicherung importieren</button>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
 
     <span class="label">Einstellungen</span>
@@ -1525,9 +1561,9 @@ function viewProfile() {
       <div class="lbl" style="margin-top:0">Pause zwischen den Sätzen</div>
       <div class="seg" style="margin-bottom:6px">${[60, 90, 120, 180].map((s) => `<button data-rest-sec="${s}" class="${st.restSec === s ? 'on' : ''}">${fmtTime(s)}</button>`).join('')}</div>
       <label class="row" style="margin:12px 0"><input type="checkbox" id="soundChk" ${st.sound ? 'checked' : ''} style="width:22px;height:22px;accent-color:#e63027"><span>Ton am Ende der Pause</span></label>
-      <button class="btn small" id="goalsBtn">🎯 Ernährungsziele: ${fmtNum(st.kcalGoal, 0)} kcal</button>
+      <button class="btn small" id="goalsBtn">${ico('target')}Ernährungsziele: <span class="num">${fmtNum(st.kcalGoal, 0)} kcal</span></button>
     </div>
-    <p class="hint center small">Fightclub 🥊 Version ${APP_VERSION} · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>`;
+    <p class="hint center small">Fightclub · Version ${APP_VERSION} · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>`;
 
   if ($('#loginForm')) {
     const msg = (t) => { $('#authMsg').textContent = t; };
@@ -1536,7 +1572,7 @@ function viewProfile() {
       e.preventDefault();
       const { email, pw } = creds();
       $('#loginBtn').disabled = true; msg('Anmelden …');
-      try { await Sync.signIn(email, pw); toast('Willkommen zurück! 🥊'); render(); scrollTop(); }
+      try { await Sync.signIn(email, pw); toast('Angemeldet'); render(); scrollTop(); }
       catch (err) { msg(err.message); $('#loginBtn').disabled = false; }
     };
     $('#signupBtn').onclick = async () => {
@@ -1545,7 +1581,7 @@ function viewProfile() {
       msg('Konto wird erstellt …');
       try {
         const loggedIn = await Sync.signUp(email, pw);
-        if (loggedIn) { toast('Konto erstellt! 🥊'); render(); scrollTop(); }
+        if (loggedIn) { toast('Konto erstellt'); render(); scrollTop(); }
         else msg('Fast geschafft! Bestätige den Link in der E-Mail und melde dich dann hier an.');
       } catch (err) { msg(err.message); }
     };
@@ -1578,10 +1614,10 @@ Sync.onChange(() => {
 });
 
 async function diagnoseSheet() {
-  openSheet(`<h2>🔍 Verbindung</h2><div id="diagList"><p class="hint">Prüfe …</p></div>`);
+  openSheet(`<h2>${ico('search')}Verbindung</h2><div id="diagList"><p class="hint">Prüfe …</p></div>`);
   const checks = await Sync.diagnose();
   const list = $('#diagList');
-  if (list) list.innerHTML = checks.map((c) => `<div class="row-item"><span style="font-size:22px">${c.ok ? '✅' : '❌'}</span><div class="grow">${esc(c.text)}</div></div>`).join('');
+  if (list) list.innerHTML = checks.map((c) => `<div class="row-item diag ${c.ok ? 'ok' : 'bad'}">${ico(c.ok ? 'check' : 'x')}<div class="grow">${esc(c.text)}</div></div>`).join('');
 }
 
 function passwordSheet() {
@@ -1593,7 +1629,7 @@ function passwordSheet() {
     $('#newPwSave').onclick = async () => {
       const pw = $('#newPw').value;
       if (pw.length < 6) { $('#newPwMsg').textContent = 'Mindestens 6 Zeichen.'; return; }
-      try { await Sync.setPassword(pw); closeSheet(); toast('Passwort geändert ✓'); Sync.syncNow(); }
+      try { await Sync.setPassword(pw); closeSheet(); toast('Passwort geändert'); Sync.syncNow(); }
       catch (err) { $('#newPwMsg').textContent = err.message; }
     };
   });
@@ -1750,6 +1786,6 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 
 Sync.handleRedirect().then((type) => {
   if (type === 'recovery') { switchTab('profile'); passwordSheet(); }
-  else if (type) { toast('E-Mail bestätigt ✓'); switchTab('profile'); }
+  else if (type) { toast('E-Mail bestätigt'); switchTab('profile'); }
   Sync.syncNow();
 });

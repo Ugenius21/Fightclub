@@ -13,10 +13,10 @@
    ========================================================= */
 
 const MEALS = [
-  ['breakfast', 'Frühstück', '🍳'],
-  ['lunch', 'Mittagessen', '🍝'],
-  ['dinner', 'Abendessen', '🍲'],
-  ['snack', 'Snacks', '🍫'],
+  ['breakfast', 'Frühstück'],
+  ['lunch', 'Mittagessen'],
+  ['dinner', 'Abendessen'],
+  ['snack', 'Snacks'],
 ];
 const mealInfo = (m) => MEALS.find((x) => x[0] === m) || MEALS[3];
 const foodState = { date: null, tab: 'diary', foodQuery: '' };
@@ -140,7 +140,7 @@ function foodRowHtml(f, attr) {
   return `<button class="food-row" ${attr}>
     <div class="grow"><div class="t">${esc(f.name)}</div>
     <div class="s">${f.brand ? esc(f.brand) + ' · ' : ''}${fmtNum(f.per100.kcal, 0)} kcal / 100 ${f.unit || 'g'}${f.serving ? ` · Portion ${fmtNum(f.serving, 0)} ${f.unit || 'g'}` : ''}</div></div>
-    <span class="plus">＋</span></button>`;
+    <span class="plus">${ico('plus')}</span></button>`;
 }
 
 /* =========================================================
@@ -149,7 +149,7 @@ function foodRowHtml(f, attr) {
 
 function viewNutrition() {
   if (!foodState.date) foodState.date = todayStr();
-  setHeader('Ernährung', `<button class="top-chip" id="scanTop" aria-label="Strichcode scannen">📷</button>`);
+  setHeader('Ernährung', `<button class="top-chip" id="scanTop" aria-label="Strichcode scannen">${ico('scan')}</button>`);
   const v = $('#view');
   const tabs = [['diary', 'Tagebuch'], ['recipes', 'Rezepte'], ['foods', 'Produkte'], ['stats', 'Statistik']];
   v.innerHTML = `<div class="seg">${tabs.map(([k, l]) => `<button data-ftab="${k}" class="${foodState.tab === k ? 'on' : ''}">${l}</button>`).join('')}</div><div id="foodView"></div>`;
@@ -176,34 +176,34 @@ function viewDiary(v) {
   const bar = (val, g) => (g ? Math.min(100, (val / g) * 100) : 0);
   const macro = (name, val, g, color) => `<div class="mbar"><div class="mtop"><span>${name}</span><b>${fmtNum(val, 0)}${g ? `<small>/${g} g</small>` : ' g'}</b></div><i><b style="width:${bar(val, g)}%;background:${val > (g || Infinity) * 1.05 ? 'var(--red)' : color}"></b></i></div>`;
 
-  const meals = MEALS.map(([key, name, emoji]) => {
+  const meals = MEALS.map(([key, name]) => {
     const list = entries.filter((e) => entryMeal(e) === key);
     const sum = sumNutrition(list);
     const yList = yesterday.filter((e) => entryMeal(e) === key);
     return `<section class="panel meal">
-      <div class="meal-head"><span class="emoji">${emoji}</span><h3>${name}</h3><b>${fmtNum(sum.kcal, 0)}<small> kcal</small></b></div>
+      <div class="meal-head"><h3>${name}</h3><b>${fmtNum(sum.kcal, 0)}<small> kcal</small></b></div>
       ${list.map((e) => `<button class="food-row" data-entry="${e.id}">
         <div class="grow"><div class="t">${esc(entryName(e))}</div>
         <div class="s">${e.brand ? esc(e.brand) + ' · ' : ''}${e.amount ? `${fmtNum(e.amount, 0)} ${e.unit || 'g'} · ` : ''}${macroLine(e)}</div></div>
         <b>${fmtNum(e.kcal, 0)}</b></button>`).join('')}
-      ${!list.length && yList.length ? `<button class="copy-link" data-copy="${key}">↺ Wie gestern übernehmen (${fmtNum(sumNutrition(yList).kcal, 0)} kcal)</button>` : ''}
+      ${!list.length && yList.length ? `<button class="copy-link" data-copy="${key}">${ico('copy')}Wie gestern übernehmen (${fmtNum(sumNutrition(yList).kcal, 0)} kcal)</button>` : ''}
       <div class="meal-actions">
-        <button class="btn small" data-add="${key}">＋ Hinzufügen</button>
-        <button class="ibtn scan" data-scan="${key}" aria-label="${name}: Strichcode scannen">📷</button>
+        <button class="btn small" data-add="${key}">${ico('plus')}Hinzufügen</button>
+        <button class="ibtn scan" data-scan="${key}" aria-label="${name}: Strichcode scannen">${ico('scan')}</button>
       </div>
     </section>`;
   }).join('');
 
   v.innerHTML = `
     <div class="day-nav">
-      <button class="ibtn" id="dPrev" aria-label="Vorheriger Tag">‹</button>
+      <button class="ibtn" id="dPrev" aria-label="Vorheriger Tag">${ico('chevl')}</button>
       <label class="day-label">${label}<input type="date" id="dPick" value="${d}" aria-label="Datum wählen"></label>
-      <button class="ibtn" id="dNext" aria-label="Nächster Tag">›</button>
+      <button class="ibtn" id="dNext" aria-label="Nächster Tag">${ico('chevr')}</button>
     </div>
     <button class="panel summary" id="goalBtn">
       <div class="row"><div class="grow"><div class="hint">Kalorien übrig</div>
         <div class="big-left ${left < 0 ? 'over' : ''}">${fmtNum(left, 0)}</div></div>
-        <span class="hint small">Ziele ✎</span></div>
+        <span class="hint small" style="display:flex;align-items:center;gap:4px">Ziele ${ico('edit')}</span></div>
       <div class="equation">
         <span><b>${fmtNum(goal, 0)}</b>Ziel</span><span class="op">−</span>
         <span><b>${fmtNum(t.kcal, 0)}</b>Essen</span><span class="op">=</span>
@@ -213,11 +213,11 @@ function viewDiary(v) {
       <div class="macro-bars">
         ${macro('Eiweiß', t.p, st.proteinGoal, 'var(--blue)')}
         ${macro('Kohlenh.', t.c, st.carbsGoal, 'var(--yellow)')}
-        ${macro('Fett', t.f, st.fatGoal, '#fb8c00')}
+        ${macro('Fett', t.f, st.fatGoal, 'var(--orange)')}
       </div>
     </button>
     ${meals}
-    <button class="btn dashed" id="quickAdd">⚡ Schnell-Eintrag (Makros)</button>`;
+    <button class="btn dashed" id="quickAdd">${ico('zap')}Schnell-Eintrag (Makros)</button>`;
 
   $('#dPrev').onclick = () => { foodState.date = addDays(d, -1); render(); };
   $('#dNext').onclick = () => { foodState.date = addDays(d, 1); render(); };
@@ -237,7 +237,7 @@ function viewDiary(v) {
       const { id, upd, ...rest } = e;
       data.food.push(touch({ ...rest, id: uid(), date: d, meal }));
     });
-    save(); toast('Übernommen ✓'); render();
+    save(); toast('Übernommen'); render();
   });
 }
 
@@ -270,11 +270,11 @@ function viewFoodStats(v) {
     </div>
     ${tracked.length ? `<div class="panel">
       <div class="hint" style="margin-bottom:8px">Ø Verteilung der Kalorien</div>
-      <div class="split"><i style="width:${pct(aP * 4)}%;background:var(--blue)"></i><i style="width:${pct(aC * 4)}%;background:var(--yellow)"></i><i style="width:${pct(aF * 9)}%;background:#fb8c00"></i></div>
-      <div class="legend small"><span><i class="dot" style="background:var(--blue)"></i>Eiweiß ${pct(aP * 4)} %</span><span><i class="dot" style="background:var(--yellow)"></i>Kohlenh. ${pct(aC * 4)} %</span><span><i class="dot" style="background:#fb8c00"></i>Fett ${pct(aF * 9)} %</span></div>
+      <div class="split"><i style="width:${pct(aP * 4)}%;background:var(--blue)"></i><i style="width:${pct(aC * 4)}%;background:var(--yellow)"></i><i style="width:${pct(aF * 9)}%;background:var(--orange)"></i></div>
+      <div class="legend small"><span><i class="dot" style="background:var(--blue)"></i>Eiweiß ${pct(aP * 4)} %</span><span><i class="dot" style="background:var(--yellow)"></i>Kohlenh. ${pct(aC * 4)} %</span><span><i class="dot" style="background:var(--orange)"></i>Fett ${pct(aF * 9)} %</span></div>
     </div>` : ''}
     ${list.length ? `<span class="label">Tage</span>
-      ${list.map((d) => `<button class="row-item" data-day="${d}"><div class="grow"><div class="t">${fmtDateLong(d)}</div><div class="s">${macroLine(days[d])}</div></div><b style="font:400 22px var(--display)">${fmtNum(days[d].kcal, 0)}</b><span class="chev">›</span></button>`).join('')}` : ''}`;
+      ${list.map((d) => `<button class="row-item" data-day="${d}"><div class="grow"><div class="t">${fmtDateLong(d)}</div><div class="s">${macroLine(days[d])}</div></div><b class="num" style="font-size:16px">${fmtNum(days[d].kcal, 0)}</b><span class="chev">${ico('chevr')}</span></button>`).join('')}` : ''}`;
 
   barChart($('#fChart'), bars, st.kcalGoal, 'kcal');
   $$('[data-day]', v).forEach((b) => b.onclick = () => { foodState.date = b.dataset.day; foodState.tab = 'diary'; render(); });
@@ -288,7 +288,7 @@ function viewFoodList(v) {
   v.innerHTML = `
     <input class="field" id="flQ" type="search" placeholder="Meine Lebensmittel durchsuchen …" value="${esc(q)}" autocomplete="off">
     <div style="height:12px"></div>
-    <button class="btn yellow" id="flNew">＋ Eigenes Lebensmittel anlegen</button>
+    <button class="btn yellow" id="flNew">${ico('plus')}Eigenes Lebensmittel anlegen</button>
     <div style="height:16px"></div>
     <div class="panel" id="flList">${foods.length ? foods.map((f) => foodRowHtml(f, `data-fid="${f.id}"`)).join('')
       : `<p class="hint" style="margin:0">${q ? 'Nichts gefunden.' : 'Hier landen deine eigenen und gescannten Lebensmittel. Beim nächsten Mal findest du sie sofort – auch offline.'}</p>`}</div>`;
@@ -307,8 +307,8 @@ function viewFoodList(v) {
     openSheet(`<h2>${esc(f.name)}</h2>
       <p class="hint">${f.brand ? esc(f.brand) + ' · ' : ''}${f.barcode ? 'Strichcode ' + esc(f.barcode) : 'ohne Strichcode'}</p>
       <div class="panel small">Pro 100 ${f.unit || 'g'}: <b>${fmtNum(f.per100.kcal, 0)} kcal</b> · ${macroLine(f.per100)}${f.serving ? `<br>Portion: ${fmtNum(f.serving, 0)} ${f.unit || 'g'}` : ''}</div>
-      <button class="btn primary" id="fdAdd">＋ Zum Tagebuch</button>
-      <button class="btn" id="fdEdit">✎ Bearbeiten</button>
+      <button class="btn primary" id="fdAdd">${ico('plus')}Zum Tagebuch</button>
+      <button class="btn" id="fdEdit">${ico('edit')}Bearbeiten</button>
       <button class="btn danger" id="fdDel">Löschen</button>`, () => {
       $('#fdAdd').onclick = () => { foodState.date = todayStr(); portionSheet(f, defaultMeal()); };
       $('#fdEdit').onclick = () => customFoodSheet(f, null);
@@ -326,21 +326,21 @@ function viewFoodList(v) {
 
 function addFoodSheet(meal) {
   const isRecipe = meal === RECIPE;
-  const [, name, emoji] = mealInfo(meal);
+  const [, name] = mealInfo(meal);
   const noRecipes = (list) => (isRecipe ? list.filter((f) => !f.recipeId) : list);
   let results = [];
   openSheet(`
-    <h2>${isRecipe ? '🍲 Zutat hinzufügen' : `${emoji} ${name}`}</h2>
+    <h2>${isRecipe ? `${ico('pot')}Zutat hinzufügen` : `${name}: hinzufügen`}</h2>
     <div class="btn-row">
-      <button class="btn yellow" id="afScan">📷 Scannen</button>
-      ${isRecipe ? '<button class="btn" id="afBack">‹ Zum Rezept</button>' : '<button class="btn" id="afQuick">⚡ Schnell</button>'}
+      <button class="btn yellow" id="afScan">${ico('scan')}Scannen</button>
+      ${isRecipe ? `<button class="btn" id="afBack">${ico('chevl')}Zum Rezept</button>` : `<button class="btn" id="afQuick">${ico('zap')}Schnell</button>`}
     </div>
     <form id="afForm" class="row" style="margin-top:16px">
       <input class="field grow" id="afQ" type="search" placeholder="Lebensmittel suchen …" autocomplete="off" enterkeyhint="search">
-      <button class="btn primary" type="submit" style="width:auto;padding:12px 16px 9px" aria-label="Suchen">🔍</button>
+      <button class="btn primary" type="submit" style="width:auto;padding:0 14px" aria-label="Suchen">${ico('search')}</button>
     </form>
     <div id="afResults"></div>
-    <button class="btn dashed" id="afOwn" style="margin-top:14px">＋ Eigenes Lebensmittel anlegen</button>
+    <button class="btn dashed" id="afOwn" style="margin-top:14px">${ico('plus')}Eigenes Lebensmittel anlegen</button>
   `, (root) => {
     const box = $('#afResults', root);
     const draw = (sections) => {
@@ -356,10 +356,10 @@ function addFoodSheet(meal) {
       const recipes = isRecipe ? [] : recipesMatching(q);
       if (!q) {
         const recent = noRecipes(recentFoods()).filter((f) => !f.recipeId);
-        draw([['🍲 Meine Rezepte', recipes], ['Zuletzt gegessen', recent, recent.length || recipes.length ? '' : '<p class="hint">Noch nichts eingetragen. Scanne einen Strichcode oder suche nach einem Lebensmittel.</p>']]);
+        draw([['Meine Rezepte', recipes], ['Zuletzt gegessen', recent, recent.length || recipes.length ? '' : '<p class="hint">Noch nichts eingetragen. Scanne einen Strichcode oder suche nach einem Lebensmittel.</p>']]);
       } else {
         const local = noRecipes(localSearch(q)).filter((f) => !f.recipeId);
-        draw([['🍲 Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local, local.length || recipes.length ? '' : '<p class="hint">Nichts Eigenes gefunden – tippe auf 🔍 für die Online-Suche.</p>']]);
+        draw([['Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local, local.length || recipes.length ? '' : '<p class="hint">Nichts Eigenes gefunden – tippe auf die Lupe für die Online-Suche.</p>']]);
       }
     };
     showLocal();
@@ -371,14 +371,14 @@ function addFoodSheet(meal) {
       $('#afQ').blur();
       const local = noRecipes(localSearch(q)).filter((f) => !f.recipeId);
       const recipes = isRecipe ? [] : recipesMatching(q);
-      draw([['🍲 Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local], ['Open Food Facts', [], '<p class="hint">Suche online …</p>']]);
+      draw([['Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local], ['Open Food Facts', [], '<p class="hint">Suche online …</p>']]);
       try {
         const online = await offSearch(q);
         if ($('#afQ') && $('#afQ').value.trim() === q) {
-          draw([['🍲 Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local], ['Open Food Facts', online, online.length ? '' : '<p class="hint">Nichts gefunden. Probier einen anderen Begriff oder leg das Lebensmittel selbst an.</p>']]);
+          draw([['Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local], ['Open Food Facts', online, online.length ? '' : '<p class="hint">Nichts gefunden. Probier einen anderen Begriff oder leg das Lebensmittel selbst an.</p>']]);
         }
       } catch (err) {
-        draw([['🍲 Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local], ['Open Food Facts', [], '<p class="hint">Online-Suche gerade nicht möglich (keine Verbindung?).</p>']]);
+        draw([['Meine Rezepte', recipes], ['Meine & zuletzt gegessen', local], ['Open Food Facts', [], '<p class="hint">Online-Suche gerade nicht möglich (keine Verbindung?).</p>']]);
       }
     };
     $('#afScan').onclick = () => {
@@ -392,7 +392,7 @@ function addFoodSheet(meal) {
 }
 
 function mealChipsHtml(sel) {
-  return `<div class="kp-chiprow">${MEALS.map(([k, n, e]) => `<button data-meal="${k}" class="${k === sel ? 'on' : ''}">${e} ${n}</button>`).join('')}</div>`;
+  return `<div class="kp-chiprow">${MEALS.map(([k, n]) => `<button data-meal="${k}" class="${k === sel ? 'on' : ''}">${n}</button>`).join('')}</div>`;
 }
 function bindMealChips(root, tmp) {
   $$('[data-meal]', root).forEach((b) => b.onclick = () => {
@@ -419,10 +419,10 @@ function portionSheet(food, meal, entry) {
     fields: [{ key: 'amount', label: 'Menge', unit, decimals: 0, int: true, step: food.serving && food.serving <= 60 ? food.serving : 10, get: () => tmp.amount, set: (x) => { tmp.amount = x; } }],
     title: () => `<b>${esc(food.name)}</b>${food.brand ? ' · ' + esc(food.brand) : ''}`,
     extraHtml: () => `
-      ${isRecipe ? '<div class="kp-preview hint small">🍲 Zutat fürs Rezept</div>' : mealChipsHtml(tmp.meal)}
+      ${isRecipe ? '<div class="kp-preview hint small">Zutat für das Rezept</div>' : mealChipsHtml(tmp.meal)}
       <div class="kp-chiprow">${chips.map(([a, l]) => `<button data-amt="${a}">${l}</button>`).join('')}</div>
       <div class="kp-preview" id="kpPreview">${preview()}</div>
-      ${entry ? '<button class="kp-del" data-del>🗑 Eintrag entfernen</button>' : ''}`,
+      ${entry ? `<button class="kp-del" data-del>${ico('trash')}Eintrag entfernen</button>` : ''}`,
     onDraw: (root) => {
       bindMealChips(root, tmp);
       $$('[data-amt]', root).forEach((b) => b.onclick = () => Keypad.set(Number(b.dataset.amt)));
@@ -448,7 +448,7 @@ function portionSheet(food, meal, entry) {
         data.foods.push(touch({ ...clean }));
       }
       save();
-      toast(entry ? 'Gespeichert ✓' : `${mealInfo(tmp.meal)[2]} Eingetragen!`);
+      toast(entry ? 'Gespeichert' : `${mealInfo(tmp.meal)[1]}: eingetragen`);
       foodState.tab = 'diary';
       if (nav.tab !== 'food') switchTab('food'); else render();
     },
@@ -466,8 +466,8 @@ function quickEntry(meal, entry) {
     owner: 'food',
     chips: true,
     fields: [mk('p', 'Eiweiß', 'g', 5), mk('c', 'Kohlenhydrate', 'g', 5), mk('f', 'Fett', 'g', 5)],
-    title: () => `<b>⚡ ${entry ? 'Eintrag ändern' : 'Schnell-Eintrag'}</b>`,
-    extraHtml: () => `${mealChipsHtml(tmp.meal)}<div class="kp-preview" id="kpPreview">${preview()}</div>${entry ? '<button class="kp-del" data-del>🗑 Eintrag entfernen</button>' : ''}`,
+    title: () => `<b>${entry ? 'Eintrag ändern' : 'Schnell-Eintrag'}</b>`,
+    extraHtml: () => `${mealChipsHtml(tmp.meal)}<div class="kp-preview" id="kpPreview">${preview()}</div>${entry ? `<button class="kp-del" data-del>${ico('trash')}Eintrag entfernen</button>` : ''}`,
     onDraw: (root) => {
       bindMealChips(root, tmp);
       const del = $('[data-del]', root);
@@ -481,7 +481,7 @@ function quickEntry(meal, entry) {
       const vals = { meal: tmp.meal, kcal: kcal(), p: tmp.p || 0, c: tmp.c || 0, f: tmp.f || 0 };
       if (entry) { Object.assign(entry, vals); touch(entry); }
       else data.food.push(touch({ id: uid(), date: foodState.date || todayStr(), name: 'Schnell-Eintrag', src: 'quick', ...vals }));
-      save(); toast('Eingetragen ⚡');
+      save(); toast('Eingetragen');
       foodState.tab = 'diary';
       if (nav.tab !== 'food') switchTab('food'); else render();
     },
@@ -548,7 +548,7 @@ function customFoodSheet(food, meal) {
       save();
       closeSheet();
       if (meal) portionSheet(rec, meal);
-      else { toast('Gespeichert ✓'); render(); }
+      else { toast('Gespeichert'); render(); }
     };
     if (!f.name || f.name === 'Unbekanntes Produkt') setTimeout(() => $('#cfName') && $('#cfName').focus(), 80);
   });
@@ -558,7 +558,7 @@ function goalsSheet() {
   const st = data.settings;
   const parse = (s) => { const n = parseFloat(String(s || '').replace(',', '.')); return isFinite(n) && n > 0 ? Math.round(n) : null; };
   openSheet(`
-    <h2>🎯 Tagesziele</h2>
+    <h2>${ico('target')}Tagesziele</h2>
     <p class="hint">Trag deine Makros ein – das Kalorienziel wird daraus berechnet.</p>
     <div class="nut-grid">
       <label>Eiweiß (g)<input class="field" id="gP" inputmode="numeric" value="${st.proteinGoal || ''}"></label>
@@ -610,13 +610,13 @@ function openScanner(meal) {
   el.innerHTML = `
     <video playsinline muted autoplay></video>
     <div class="scan-frame"><i></i></div>
-    <div class="scan-top"><b>📷 ${isRecipe ? `Zutat ${recipeDraft.items.length + 1} scannen` : `${esc(mealInfo(meal)[1])}: Strichcode scannen`}</b>
-      ${isRecipe && recipeDraft.items.length ? `<span class="scan-count">🍲 ${recipeDraft.items.length} Zutat${recipeDraft.items.length === 1 ? '' : 'en'} · ${fmtNum(recipeTotals(recipeDraft).sum.kcal, 0)} kcal</span><br>` : ''}
+    <div class="scan-top"><b>${isRecipe ? `Zutat ${recipeDraft.items.length + 1} scannen` : `${esc(mealInfo(meal)[1])}: Strichcode scannen`}</b>
+      ${isRecipe && recipeDraft.items.length ? `<span class="scan-count">${recipeDraft.items.length} Zutat${recipeDraft.items.length === 1 ? '' : 'en'} · ${fmtNum(recipeTotals(recipeDraft).sum.kcal, 0)} kcal</span><br>` : ''}
       <span id="scanStatus">Kamera wird gestartet …</span></div>
     <div class="scan-bottom">
-      <button class="btn small" id="scanType">⌨ Eintippen</button>
-      <button class="btn small" id="scanPhoto">🖼 Foto</button>
-      ${isRecipe ? '<button class="btn small green scan-done" id="scanClose">✓ Fertig</button>' : '<button class="btn small primary" id="scanClose">✕</button>'}
+      <button class="btn small" id="scanType">${ico('keyboard')}Eintippen</button>
+      <button class="btn small" id="scanPhoto">${ico('image')}Foto</button>
+      ${isRecipe ? `<button class="btn small green scan-done" id="scanClose">${ico('check')}Fertig</button>` : `<button class="btn small primary" id="scanClose" aria-label="Schließen">${ico('x')}</button>`}
     </div>
     <input type="file" accept="image/*" capture="environment" id="scanFile" hidden>`;
   document.body.appendChild(el);
@@ -652,7 +652,7 @@ function openScanner(meal) {
 
 function manualBarcodeSheet(meal) {
   openSheet(`
-    <h2>⌨ Strichcode eintippen</h2>
+    <h2>${ico('keyboard')}Strichcode eintippen</h2>
     <p class="hint">Die Ziffern stehen unter den Strichen (meist 13 Stellen).</p>
     <form id="mbForm">
       <input class="field" id="mbCode" inputmode="numeric" pattern="[0-9]*" placeholder="z. B. 4000417025005" autocomplete="off" style="font-size:22px;letter-spacing:2px">
@@ -687,14 +687,14 @@ async function lookupBarcode(code, meal) {
 
 function notFoundSheet(code, meal, partial, offline) {
   openSheet(`
-    <h2>${offline ? '📡 Keine Verbindung' : '🤷 Unbekanntes Produkt'}</h2>
+    <h2>${ico('info')}${offline ? 'Keine Verbindung' : 'Unbekanntes Produkt'}</h2>
     <p>${offline ? 'Ohne Internet kann das Produkt nicht nachgeschlagen werden.'
       : partial ? `„${esc(partial.name)}“ ist bekannt, aber ohne Nährwerte.` : 'Dieses Produkt ist noch nicht in der Datenbank.'}
       <br><span class="hint">Strichcode: <b>${esc(code)}</b></span></p>
     <p class="hint">Leg es einmal selbst an – die Nährwerte stehen auf der Verpackung. Beim nächsten Scan wird es sofort erkannt.</p>
     <button class="btn primary" id="nfCreate">Selbst anlegen</button>
-    <button class="btn" id="nfRetry">📷 Nochmal scannen</button>
-    ${meal === RECIPE ? '<button class="btn danger" id="nfBack" style="color:var(--muted)">‹ Zurück zum Rezept</button>' : ''}`, () => {
+    <button class="btn" id="nfRetry">${ico('scan')}Nochmal scannen</button>
+    ${meal === RECIPE ? `<button class="btn danger" id="nfBack" style="color:var(--muted)">${ico('chevl')}Zurück zum Rezept</button>` : ''}`, () => {
     $('#nfCreate').onclick = () => customFoodSheet({ ...(partial || {}), id: undefined, barcode: code }, meal);
     $('#nfRetry').onclick = () => openScanner(meal);
     if ($('#nfBack')) $('#nfBack').onclick = recipeEditor;

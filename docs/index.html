@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Fightclub">
   <meta name="format-detection" content="telephone=no">
-  <meta name="theme-color" content="#e63027">
+  <meta name="theme-color" content="#16222e">
   <title>Fightclub</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-soap-180.png">
@@ -17,7 +17,7 @@
 </head>
 <body>
   <header class="topbar">
-    <button id="backBtn" class="back-btn off" aria-label="Zurück">‹</button>
+    <button id="backBtn" class="back-btn off" aria-label="Zurück"></button>
     <h1 id="title">Fightclub</h1>
     <div id="topAction"></div>
   </header>
@@ -27,11 +27,11 @@
   <main id="view"></main>
 
   <nav class="tabbar" id="tabbar">
-    <button data-tab="plans" class="active"><span>🥊</span>Training</button>
-    <button data-tab="food"><span>🍎</span>Ernährung</button>
-    <button data-tab="calendar"><span>📅</span>Kalender</button>
-    <button data-tab="progress"><span>📈</span>Fortschritt</button>
-    <button data-tab="profile"><span>👤</span>Profil</button>
+    <button data-tab="plans" class="active"><span data-ico="training"></span>Training</button>
+    <button data-tab="food"><span data-ico="food"></span>Ernährung</button>
+    <button data-tab="calendar"><span data-ico="calendar"></span>Kalender</button>
+    <button data-tab="progress"><span data-ico="progress"></span>Fortschritt</button>
+    <button data-tab="profile"><span data-ico="profile"></span>Profil</button>
   </nav>
 
   <div id="sheet" class="sheet" hidden>
@@ -42,6 +42,7 @@
   <div id="keypad" class="keypad" hidden></div>
 
   <script src="config.js"></script>
+  <script src="js/icons.js"></script>
   <script src="js/data.js"></script>
   <script src="js/sync.js"></script>
   <script src="js/xlsx.js"></script>

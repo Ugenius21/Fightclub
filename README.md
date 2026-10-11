@@ -1,25 +1,27 @@
-# Fightclub 🥊
+# Fightclub
 
-Fightclub ist eine Fitness-App im Comic-Look. Damit verfolgst du deinen Fortschritt im Krafttraining, dein Körpergewicht und deine Ernährung.
+Fightclub ist eine Fitness-App mit sachlichem, datenorientiertem Design. Damit verfolgst du deinen Fortschritt im Krafttraining, dein Körpergewicht und deine Ernährung.
+
+**Design:** IBM Plex Sans für Text, IBM Plex Mono für Messwerte, schlichte Linien-Symbole statt Emojis, Diagramme mit Achsen, Einheiten, linearer Trendlinie und Bestimmtheitsmaß (R²). Das App-Icon (die Seife) bleibt unverändert.
 
 ## Funktionen
 
-- **Trainingspläne** wie „Push“, „Pull“ oder „Beine“, jeder mit eigener Farbe. Mit „Start!“ geht das Training direkt los.
-- **Übungen** fügst du mit einem Tipp hinzu, auch mehrere hintereinander. Die Reihenfolge änderst du per Ziehen am Griff ≡.
-- **Training erfassen**: Satz · Gewicht (kg) · Wiederholungen. Eingegeben wird über ein eigenes großes Zahlenfeld mit ±2,5-kg- und ±1-Wdh.-Tasten und „Weiter“ zum nächsten Feld. Die iOS-Tastatur mit dem blauen Markierungskasten erscheint dabei nicht. „＋ Satz“ legt einen weiteren Satz mit den gleichen Werten an. Mit ✓ hakst du einen Satz ab („POW!“), dann startet automatisch der Pausen-Timer.
-- **Trainings-Timer** ⏱: startet automatisch mit „Start!“. Er ist als große Stoppuhr oben immer sichtbar, lässt sich pausieren und läuft auch weiter, wenn du die App zwischendurch schließt. Die Trainingszeit (ohne Pausen) wird gespeichert und im K.O.-Bildschirm, im Kalender und im Excel-Export angezeigt. Bei nachgetragenen Trainings startest du den Timer bei Bedarf selbst.
+- **Trainingspläne** wie „Push“, „Pull“ oder „Beine“, jeder mit eigener Farbe. Mit „Starten“ geht das Training direkt los.
+- **Übungen** fügst du mit einem Tipp hinzu, auch mehrere hintereinander. Die Reihenfolge änderst du per Ziehen am Griff (zwei Striche rechts).
+- **Training erfassen**: Satz · Gewicht (kg) · Wiederholungen. Eingegeben wird über ein eigenes großes Zahlenfeld mit ±2,5-kg- und ±1-Wdh.-Tasten und „Weiter“ zum nächsten Feld. Die iOS-Tastatur mit dem blauen Markierungskasten erscheint dabei nicht. „+ Satz“ legt einen weiteren Satz mit den gleichen Werten an. Mit dem Haken rechts hakst du einen Satz ab, dann startet automatisch der Pausen-Timer. Ist dabei das Zahlenfeld offen, läuft die Pause klein in dessen Kopfzeile mit und verdeckt kein Eingabefeld.
+- **Trainings-Timer**: startet automatisch mit „Starten“. Er ist als große Stoppuhr oben immer sichtbar, lässt sich pausieren und läuft auch weiter, wenn du die App zwischendurch schließt. Die Trainingszeit (ohne Pausen) wird gespeichert und in der Trainingsübersicht, im Kalender und im Excel-Export angezeigt. Bei nachgetragenen Trainings startest du den Timer bei Bedarf selbst.
 - **Werte vom letzten Training** sind vorausgefüllt (grau, bis du sie änderst oder abhakst). Darunter steht, was du letztes Mal geschafft hast.
-- **Maschine besetzt?** ⏭ schiebt die Übung ans Ende. Über ⇅ sortierst du das ganze Training um, auf Wunsch auch dauerhaft im Plan.
-- **Notizen pro Übung** 📝: eine dauerhafte Notiz (z. B. Sitzposition, Einstellung) und eine Notiz für heute (z. B. Muskelgefühl). Die Notiz von heute siehst du beim nächsten Mal unter „Letztes Mal“.
-- **K.O.-Bildschirm** nach dem Training mit Sätzen, Volumen, Dauer und **neuen Rekorden** 🏆.
-- **Fortschritt**: Diagramm pro Übung (max. Gewicht, geschätztes 1RM oder Volumen) mit Start, Aktuell, Bestwert und Steigerung.
+- **Maschine besetzt?** Das Symbol „Später“ (Dreieck mit Strich) schiebt die Übung ans Ende. Über das Pfeil-Symbol oben rechts sortierst du das ganze Training um, auf Wunsch auch dauerhaft im Plan.
+- **Notizen pro Übung**: eine dauerhafte Notiz (z. B. Sitzposition, Einstellung) und eine Notiz für heute (z. B. Muskelgefühl). Die Notiz von heute siehst du beim nächsten Mal unter „Letztes Mal“.
+- **Trainingsübersicht** nach dem Training mit Sätzen, Volumen, Dauer und **neuen Bestwerten** (inkl. Steigerung in %).
+- **Fortschritt**: Diagramm pro Übung (max. Gewicht, geschätztes 1RM oder Volumen) mit Start, Aktuell, Bestwert und Steigerung, dazu Trendlinie (lineare Regression) mit Steigung pro Woche und R².
 - **Kalender**: Trainingstage in der Farbe des Plans (z. B. Push = Rot, Beine = Blau). Hier kannst du auch Trainings nachtragen.
-- **Körpergewicht** mit Diagramm (1M / 3M / 6M / 1J / Alle), unter *Fortschritt → ⚖️ Gewicht*.
+- **Körpergewicht** mit Diagramm (1M / 3M / 6M / 1J / Alle), unter *Fortschritt → Körpergewicht*, ebenfalls mit Trendlinie.
 - **Ernährung** als eigener Bereich wie bei MyFitnessPal: Kalorien-Tagebuch mit Mahlzeiten, **Strichcode-Scanner**, Lebensmittelsuche und Tageszielen (siehe unten).
 - **Excel-Export** (.xlsx) aller Daten zur Auswertung.
 - **Login per E-Mail**, damit dein Stand auf allen Geräten synchron ist (siehe unten).
 
-## 📱 Aufs iPhone (Web-App)
+## Aufs iPhone (Web-App)
 
 Im Ordner `docs/` liegt Fightclub als **Web-App**. Du öffnest sie einmal in Safari und legst sie auf den Home-Bildschirm. Danach startet sie wie eine normale App: Vollbild, eigenes Icon, funktioniert auch offline. Du brauchst keinen Mac, kein Kabel und keine Apple-ID.
 
@@ -36,11 +38,11 @@ Im Ordner `docs/` liegt Fightclub als **Web-App**. Du öffnest sie einmal in Saf
 
 1. Die Adresse in **Safari** öffnen.
 2. Unten auf **Teilen** (Quadrat mit Pfeil) → **Zum Home-Bildschirm** → *Hinzufügen*.
-3. Fightclub über das neue Icon starten. Fertig. 🥊
+3. Fightclub über das neue Icon starten. Fertig.
 
 Updates kommen automatisch: Nach einer Änderung im Repo lädt die App beim nächsten Öffnen die neue Version.
 
-## 🔐 Login per E-Mail & Synchronisierung (einmalig einrichten)
+## Login per E-Mail & Synchronisierung (einmalig einrichten)
 
 Ohne Einrichtung funktioniert die App normal, die Daten liegen dann nur auf dem jeweiligen Gerät. Für Login und Sync dient ein kostenloses [Supabase](https://supabase.com)-Projekt als Online-Speicher. Die Einrichtung dauert einmalig etwa 10 Minuten und geht am bequemsten am PC.
 
@@ -55,7 +57,7 @@ Ohne Einrichtung funktioniert die App normal, die Daten liegen dann nur auf dem 
    - **Project URL**, z. B. `https://abcdefgh.supabase.co`
    - **anon public key** (beginnt mit `eyJ…`) bzw. **publishable key** (beginnt mit `sb_publishable_…`)
    
-   ⚠️ Niemals den **service_role**- bzw. **secret**-Key verwenden.
+   **Achtung:** Niemals den **service_role**- bzw. **secret**-Key verwenden.
 
 **Teil B – Werte in die App eintragen**
 
@@ -74,29 +76,29 @@ Ohne Einrichtung funktioniert die App normal, die Daten liegen dann nur auf dem 
 9. In der App **Profil** → E-Mail-Adresse und ein Passwort (mind. 6 Zeichen) eintippen → **Neues Konto erstellen**. Fertig: oben steht deine E-Mail mit grünem Punkt „Synchronisiert“.
 10. Auf jedem weiteren Gerät (iPad, zweites Handy, PC-Browser): App öffnen → **Profil** → dieselbe E-Mail und dasselbe Passwort → **Anmelden**. Deine Daten erscheinen automatisch.
 
-Mit **Profil → 🔍 Verbindung prüfen** zeigt die App Schritt für Schritt, ob alles stimmt (Key, Tabelle, Anmeldung) und was ggf. fehlt.
+Mit **Profil → Verbindung prüfen** zeigt die App Schritt für Schritt, ob alles stimmt (Key, Tabelle, Anmeldung) und was ggf. fehlt.
 
 Die App synchronisiert automatisch nach jeder Änderung und beim Öffnen. Offline wird lokal gespeichert und später abgeglichen. Bearbeitest du auf zwei Geräten verschiedene Einträge, bleiben beide erhalten. Beim gleichen Eintrag gewinnt die neuere Änderung. Bereits vorhandene Daten auf dem iPhone werden bei der ersten Anmeldung mit hochgeladen.
 
 *Hinweise:* Lässt du „Confirm email“ eingeschaltet, kommt nach dem Registrieren eine Mail. Den Link darin antippen, danach in der App mit E-Mail und Passwort **Anmelden**. Kostenlose Supabase-Projekte werden nach ca. einer Woche **ohne jede Nutzung** pausiert und lassen sich im Dashboard mit einem Klick wieder starten. Wer regelmäßig trainiert, merkt davon nichts.
 
-## 🍎 Ernährung
+## Ernährung
 
-Ein eigener Bereich (Tab **Ernährung**, grüne Kopfzeile) zum Kalorienzählen wie bei MyFitnessPal:
+Ein eigener Bereich (Tab **Ernährung**, Kopfzeile mit petrolfarbener Linie) zum Kalorienzählen wie bei MyFitnessPal:
 
 - **Tagebuch** mit Frühstück, Mittagessen, Abendessen und Snacks, oben die Bilanz **Ziel − Essen = Übrig** sowie Balken für Eiweiß, Kohlenhydrate und Fett. Mit ‹ › oder durch Tippen aufs Datum wechselst du den Tag.
-- **📷 Strichcode scannen:** Die Kamera erkennt den Strichcode auf der Verpackung. Die Nährwerte kommen aus [Open Food Facts](https://world.openfoodfacts.org), einer freien Datenbank mit sehr vielen deutschen Produkten. Danach nur noch die Menge wählen (Portion, 50 g, 100 g … oder eintippen) und **Hinzufügen**. Klappt die Live-Kamera nicht, geht es auch per **Foto** oder durch **Eintippen** der Ziffern.
+- **Strichcode scannen:** Die Kamera erkennt den Strichcode auf der Verpackung. Die Nährwerte kommen aus [Open Food Facts](https://world.openfoodfacts.org), einer freien Datenbank mit sehr vielen deutschen Produkten. Danach nur noch die Menge wählen (Portion, 50 g, 100 g … oder eintippen) und **Hinzufügen**. Klappt die Live-Kamera nicht, geht es auch per **Foto** oder durch **Eintippen** der Ziffern.
 - **Unbekanntes Produkt?** Einmal selbst anlegen: Eiweiß, Kohlenhydrate und Fett pro 100 g von der Verpackung eintragen, die Kalorien rechnet die App aus (Eiweiß und Kohlenhydrate × 4, Fett × 9 kcal/g). Beim nächsten Scan wird es sofort erkannt, auch offline und auf allen Geräten.
-- **Suche:** Zuerst deine eigenen und zuletzt gegessenen Lebensmittel (sofort, offline), mit 🔍 zusätzlich online in Open Food Facts.
-- **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **⚡ Schnell-Eintrag**: nur die Makros eintippen, die Kalorien werden berechnet.
-- **🍲 Rezepte** für Gerichte, die du oft isst: Name, Anzahl Portionen und Zutaten. Kalorien und Makros werden für das ganze Gericht und pro Portion berechnet (optional mit dem Gewicht nach dem Kochen). **Per Scan:** Zutat scannen, Menge wählen, und der Scanner öffnet sich sofort für die nächste Zutat, bis du auf *✓ Fertig* tippst. Im Tagebuch erscheinen Rezepte beim Hinzufügen ganz oben und lassen sich mit *½ / 1 / 1½ / 2 Portionen* eintragen.
+- **Suche:** Zuerst deine eigenen und zuletzt gegessenen Lebensmittel (sofort, offline), mit der Lupe zusätzlich online in Open Food Facts.
+- **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **Schnell-Eintrag**: nur die Makros eintippen, die Kalorien werden berechnet.
+- **Rezepte** für Gerichte, die du oft isst: Name, Anzahl Portionen und Zutaten. Kalorien und Makros werden für das ganze Gericht und pro Portion berechnet (optional mit dem Gewicht nach dem Kochen). **Per Scan:** Zutat scannen, Menge wählen, und der Scanner öffnet sich sofort für die nächste Zutat, bis du auf *Fertig* tippst. Im Tagebuch erscheinen Rezepte beim Hinzufügen ganz oben und lassen sich mit *½ / 1 / 1½ / 2 Portionen* eintragen.
 - **Ziele:** Auf die Bilanz tippen und die Makroziele eintragen, das Kalorienziel ergibt sich daraus.
 - **Statistik:** 14-Tage-Diagramm, Durchschnittswerte und die Verteilung von Eiweiß, Kohlenhydraten und Fett.
 - **Produkte:** Deine eigenen und gescannten Lebensmittel verwalten.
 
 Die Kamera fragt beim ersten Scan nach Erlaubnis. Wurde sie abgelehnt: *iPhone-Einstellungen → Safari → Kamera → Fragen/Erlauben*. Die Strichcode-Erkennung läuft komplett auf dem iPhone. Nur das Nachschlagen eines neuen Produkts braucht Internet.
 
-## 📊 Excel
+## Excel
 
 **Profil → Excel-Export (.xlsx)** erstellt eine Excel-Datei. Am iPhone kannst du sie direkt in Excel öffnen, in der Dateien-App speichern oder per Mail verschicken. Enthalten sind folgende Tabellenblätter:
 
@@ -113,13 +115,13 @@ Die Kamera fragt beim ersten Scan nach Erlaubnis. Wurde sie abgelehnt: *iPhone-E
 
 Datumswerte sind echte Excel-Daten. Filter und fixierte Kopfzeile sind schon gesetzt, sodass du direkt Pivot-Tabellen oder Diagramme bauen kannst.
 
-## 💾 Sicherung
+## Sicherung
 
 Unter **Profil → Sicherung exportieren** speicherst du alle Daten als JSON-Datei (z. B. in iCloud Drive). Beim Import wird die Sicherung mit den vorhandenen Daten zusammengeführt. Ohne Login gilt: Wenn du das Icon vom Home-Bildschirm löschst, sind die Daten auf dem iPhone weg. Mach dann ab und zu eine Sicherung.
 
 ## Native iOS-App (optional, aufwendiger)
 
-Zusätzlich gibt es Fightclub als native SwiftUI-App mit dem ursprünglichen Funktionsumfang (Pläne, Training, Kalender, Fortschritt, Körpergewicht). Die neuen Funktionen der Web-App (Comic-Design, Login & Sync, Ernährung mit Scanner, Excel) gibt es nur in der Web-App. Die Installation ist deutlich umständlicher.
+Zusätzlich gibt es Fightclub als native SwiftUI-App mit dem ursprünglichen Funktionsumfang (Pläne, Training, Kalender, Fortschritt, Körpergewicht). Die neuen Funktionen der Web-App (neues Design, Login & Sync, Ernährung mit Scanner, Excel) gibt es nur in der Web-App. Die Installation ist deutlich umständlicher.
 
 Voraussetzungen: Xcode 16 oder neuer, iOS 17 oder neuer.
 
@@ -134,7 +136,7 @@ GitHub baut die App bei jedem Push automatisch auf einem Mac in der Cloud und st
 5. **Am iPhone freigeben:**
    - *Einstellungen → Datenschutz & Sicherheit → Entwicklermodus* einschalten (iPhone startet neu).
    - *Einstellungen → Allgemein → VPN & Geräteverwaltung* → deine Apple-ID → **Vertrauen**.
-6. Fightclub auf dem Home-Bildschirm öffnen. 🎉
+6. Fightclub auf dem Home-Bildschirm öffnen.
 
 **Wichtig bei einer kostenlosen Apple-ID:** Die App läuft **7 Tage** und muss danach über Sideloadly erneut installiert werden. Deine Daten bleiben dabei erhalten, solange du die App nicht vorher löschst. In Sideloadly kannst du unter *Advanced Options* die automatische Verlängerung per WLAN aktivieren, solange der PC läuft.
 
@@ -152,7 +154,8 @@ Beim ersten Start kannst du über „Beispielpläne anlegen“ direkt Push, Pull
 
 ```
 docs/                           Web-App
-├── index.html, style.css, app.js  Oberfläche (Comic-Design, Ansichten, Zahlenfeld)
+├── index.html, style.css, app.js  Oberfläche (Design, Ansichten, Zahlenfeld, Diagramme)
+├── js/icons.js                   Linien-Symbole (SVG) statt Emojis
 ├── config.js                     Supabase-Zugangsdaten für Login & Sync
 ├── js/data.js                    Datenmodell & Zusammenführen für den Sync
 ├── js/sync.js                    Login per E-Mail + Synchronisierung (Supabase REST)
@@ -161,7 +164,7 @@ docs/                           Web-App
 ├── js/recipes.js                 Rezepte (Zutaten scannen/suchen, Portionen)
 ├── js/scanner.js                 Strichcode-Scanner (Kamera/Foto)
 ├── vendor/                       Strichcode-Erkennung (barcode-detector + ZXing-C++ WebAssembly, MIT/Apache-2.0)
-└── fonts/                        Bangers & Comic Neue (SIL Open Font License)
+└── fonts/                        IBM Plex Sans & Mono (App), Bangers (nur Icon-Vorlage), SIL Open Font License
 design/icon.svg                 Vorlage für das App-Icon (Seife im Comic-Look)
 supabase/setup.sql              Tabelle + Zugriffsregeln für den Sync
 Fightclub/

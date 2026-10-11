@@ -65,10 +65,10 @@ function recipesMatching(q) {
 function recipeRowHtml(r, attr) {
   const t = recipeTotals(r);
   return `<button class="food-row" ${attr}>
-    <span class="emoji-big">🍲</span>
+    <span class="emoji-big">${ico('pot')}</span>
     <div class="grow"><div class="t">${esc(r.name)}</div>
     <div class="s">${t.servings} Portion${t.servings === 1 ? '' : 'en'} · ${r.items.length} Zutat${r.items.length === 1 ? '' : 'en'} · ${macroLine(t.perServing)} pro Portion</div></div>
-    <b>${fmtNum(t.perServing.kcal, 0)}<small class="hint"> kcal</small></b></button>`;
+    <b>${fmtNum(t.perServing.kcal, 0)}<small> kcal</small></b></button>`;
 }
 
 /* ---------------- Liste ---------------- */
@@ -77,13 +77,13 @@ function viewRecipes(v) {
   const list = [...data.recipes].sort((a, b) => a.name.localeCompare(b.name, 'de'));
   v.innerHTML = `
     ${recipeDraft ? `<button class="resume" id="rcResume">
-      <span style="font-size:30px">🍲</span>
+      ${ico('pot')}
       <div class="grow"><div class="big">Rezept in Arbeit${recipeDraft.name ? ': ' + esc(recipeDraft.name) : ''}</div>
       <div class="small">${recipeDraft.items.length} Zutat${recipeDraft.items.length === 1 ? '' : 'en'} · Tippen zum Weitermachen</div></div>
-      <span class="big">›</span></button>` : ''}
+      <span class="chev">${ico('chevr')}</span></button>` : ''}
     <div class="btn-row">
-      <button class="btn yellow" id="rcScan">📷 Per Scan</button>
-      <button class="btn" id="rcNew">＋ Neues Rezept</button>
+      <button class="btn yellow" id="rcScan">${ico('scan')}Per Scan</button>
+      <button class="btn" id="rcNew">${ico('plus')}Neues Rezept</button>
     </div>
     <p class="hint small center" style="margin:10px 0 16px">Beim Scannen öffnet sich die Kamera nach jeder Zutat wieder – so scannst du alle Zutaten nacheinander ein.</p>
     <div class="panel">${list.length ? list.map((r) => recipeRowHtml(r, `data-rid="${r.id}"`)).join('')
@@ -115,14 +115,14 @@ function startRecipe(existing) {
 function recipeSheet(r) {
   const t = recipeTotals(r);
   openSheet(`
-    <h2>🍲 ${esc(r.name)}</h2>
+    <h2>${ico('pot')}${esc(r.name)}</h2>
     <div class="panel recipe-sum">${recipeSumHtml(r)}</div>
     <span class="label">Zutaten</span>
     <div class="panel">${r.items.map((it) => `<div class="food-row"><div class="grow"><div class="t">${esc(it.name)}</div>
       <div class="s">${it.brand ? esc(it.brand) + ' · ' : ''}${fmtNum(it.amount, 0)} ${it.unit || 'g'}</div></div>
       <b>${fmtNum(calcNutrition(it.per100, it.amount).kcal, 0)}</b></div>`).join('')}</div>
-    <button class="btn primary" id="rsAdd">＋ Ins Tagebuch (${fmtNum(t.perServing.kcal, 0)} kcal/Portion)</button>
-    <button class="btn" id="rsEdit">✎ Bearbeiten</button>
+    <button class="btn primary" id="rsAdd">${ico('plus')}Ins Tagebuch (${fmtNum(t.perServing.kcal, 0)} kcal/Portion)</button>
+    <button class="btn" id="rsEdit">${ico('edit')}Bearbeiten</button>
     <button class="btn danger" id="rsDel">Rezept löschen</button>
   `, () => {
     $('#rsAdd').onclick = () => { foodState.date = foodState.date || todayStr(); portionSheet(recipeFood(r), defaultMeal()); };
@@ -162,20 +162,20 @@ function recipeEditor() {
   }).join('');
 
   openSheet(`
-    <h2>🍲 ${r.isNew ? 'Neues Rezept' : 'Rezept bearbeiten'}</h2>
+    <h2>${ico('pot')}${r.isNew ? 'Neues Rezept' : 'Rezept bearbeiten'}</h2>
     <label class="lbl">Name</label>
     <input class="field" id="rcName" value="${esc(r.name)}" placeholder="z. B. Chili con Carne" autocomplete="off" enterkeyhint="done">
     <div class="row servings">
       <span class="grow">Portionen</span>
-      <button class="ibtn" id="rcMinus" aria-label="Weniger Portionen">−</button>
+      <button class="ibtn" id="rcMinus" aria-label="Weniger Portionen">${ico('minus')}</button>
       <b id="rcServ">${r.servings}</b>
-      <button class="ibtn" id="rcPlus" aria-label="Mehr Portionen">＋</button>
+      <button class="ibtn" id="rcPlus" aria-label="Mehr Portionen">${ico('plus')}</button>
     </div>
     <span class="label">Zutaten (${r.items.length})</span>
     <div class="panel">${ingRows || '<p class="hint" style="margin:0">Noch keine Zutaten. Scanne sie nacheinander ein oder suche sie.</p>'}</div>
     <div class="btn-row">
-      <button class="btn yellow" id="rcScanIng">📷 Zutaten scannen</button>
-      <button class="btn" id="rcSearch">🔍 Suchen</button>
+      <button class="btn yellow" id="rcScanIng">${ico('scan')}Zutaten scannen</button>
+      <button class="btn" id="rcSearch">${ico('search')}Suchen</button>
     </div>
     <div style="height:16px"></div>
     <div class="panel recipe-sum" id="rcSum">${recipeSumHtml(r)}</div>
@@ -205,7 +205,7 @@ function recipeEditor() {
       if (i >= 0) data.recipes[i] = touch(rec); else data.recipes.push(touch(rec));
       recipeDraft = null; saveRecipeDraft();
       save(); closeSheet();
-      toast('Rezept gespeichert 🍲');
+      toast('Rezept gespeichert');
       foodState.tab = 'recipes';
       if (nav.tab !== 'food') switchTab('food'); else render();
     };
@@ -226,7 +226,7 @@ function ingredientPad(i) {
     owner: 'food',
     fields: [{ key: 'amount', label: 'Menge', unit: it.unit || 'g', decimals: 0, int: true, step: 10, get: () => tmp.amount, set: (x) => { tmp.amount = x; } }],
     title: () => `<b>${esc(it.name)}</b> · Zutat`,
-    extraHtml: () => `<div class="kp-preview" id="kpPreview">${preview()}</div><button class="kp-del" data-del>🗑 Zutat entfernen</button>`,
+    extraHtml: () => `<div class="kp-preview" id="kpPreview">${preview()}</div><button class="kp-del" data-del>${ico('trash')}Zutat entfernen</button>`,
     onDraw: (root) => {
       $('[data-del]', root).onclick = () => { r.items.splice(i, 1); saveRecipeDraft(); Keypad.close(); recipeEditor(); };
     },
@@ -252,7 +252,7 @@ function addIngredient(food, amount) {
     save();
   }
   saveRecipeDraft();
-  toast(`${food.name} hinzugefügt ✓`);
+  toast(`${food.name} hinzugefügt`);
   if (r.scanning) openScanner(RECIPE);
   else recipeEditor();
 }
