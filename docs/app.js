@@ -220,6 +220,7 @@ function setHeader(title, actionHtml = '') {
   $('#backBtn').classList.toggle('off', nav.stack.length === 0);
   $('#topAction').innerHTML = actionHtml;
   $$('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === nav.tab));
+  requestAnimationFrame(() => document.documentElement.style.setProperty('--topbar-h', $('.topbar').offsetHeight + 'px'));
 }
 
 function render() {
@@ -494,7 +495,7 @@ function viewPlans() {
     html += `<button class="resume" id="resume">
       <span style="font-size:34px">🥊</span>
       <div class="grow"><div class="big">Kampf läuft: ${esc(planName(draft.planId))}</div>
-      <div class="small">${fmtDateLong(draft.date)} · Tippen zum Weitermachen</div></div>
+      <div class="small">${draft.started ? `<b id="resumeTime">${draft.pausedAt ? '⏸' : '⏱'} ${fmtClock(elapsedMs(draft))}</b> · ` : ''}Tippen zum Weitermachen</div></div>
       <span class="big">›</span></button>`;
   }
 
@@ -695,7 +696,7 @@ function newEntry(ex, date) {
 function startWorkout(planId, date) {
   if (draft && !confirm('Es läuft bereits ein Training. Verwerfen und neu beginnen?')) { go('workout'); return; }
   const plan = planById(planId);
-  draft = { id: uid(), planId, date, isNew: true, started: date === todayStr() ? Date.now() : null, entries: plan.exercises.map((ex) => newEntry(ex, date)) };
+  draft = { id: uid(), planId, date, isNew: true, started: date === todayStr() ? Date.now() : null, pausedMs: 0, pausedAt: null, entries: plan.exercises.map((ex) => newEntry(ex, date)) };
   saveDraft();
   go('workout');
 }
@@ -748,13 +749,60 @@ function drawRest() {
   });
 }
 
-/* Trainingsdauer */
-let clockTimer = null;
-function drawClock() {
-  const c = $('#woClock');
-  if (!c || !draft) { clearInterval(clockTimer); return; }
-  c.innerHTML = draft.started ? `${fmtTime((Date.now() - draft.started) / 1000)}<small>Dauer</small>` : `${fmtDate(draft.date, false)}<small>Datum</small>`;
+/* Trainings-Timer: startet mit dem Training, läuft auch bei geschlossener App weiter
+   (berechnet aus dem Startzeitpunkt) und lässt sich pausieren. */
+function elapsedMs(d) {
+  if (!d || !d.started) return 0;
+  return Math.max(0, (d.pausedAt || Date.now()) - d.started - (d.pausedMs || 0));
 }
+function fmtClock(ms) {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  return h ? `${h}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}` : `${Math.floor(s / 60)}:${pad(s % 60)}`;
+}
+const fmtDur = (min) => (min >= 60 ? `${Math.floor(min / 60)}:${pad(min % 60)} h` : `${min} min`);
+
+function toggleTimer() {
+  if (!draft) return;
+  if (!draft.started) { draft.started = Date.now(); draft.pausedMs = 0; draft.pausedAt = null; }
+  else if (draft.pausedAt) { draft.pausedMs = (draft.pausedMs || 0) + (Date.now() - draft.pausedAt); draft.pausedAt = null; }
+  else draft.pausedAt = Date.now();
+  saveDraft();
+  drawTimer();
+}
+
+function timerHtml() {
+  if (!draft) return '';
+  if (!draft.isNew && !draft.started) {
+    return `<div class="wo-timer" id="woTimer"><span class="time">⏱ ${draft.dur ? fmtDur(draft.dur) : '–'}</span><span class="lbl2 grow">Dauer dieses Trainings</span></div>`;
+  }
+  if (!draft.started) {
+    return `<div class="wo-timer" id="woTimer"><span class="time">⏱ 0:00</span><span class="lbl2 grow">Timer läuft noch nicht</span><button data-timer>▶ Start</button></div>`;
+  }
+  const paused = !!draft.pausedAt;
+  return `<div class="wo-timer ${paused ? 'paused' : ''}" id="woTimer">
+    <span class="time" id="woTime">⏱ ${fmtClock(elapsedMs(draft))}</span>
+    <span class="lbl2 grow">${paused ? 'Pausiert' : 'Trainingszeit'}</span>
+    <button data-timer aria-label="${paused ? 'Timer fortsetzen' : 'Timer pausieren'}">${paused ? '▶ Weiter' : '⏸ Pause'}</button>
+  </div>`;
+}
+function drawTimer() {
+  const holder = $('#timerHolder');
+  if (!holder) return;
+  holder.innerHTML = timerHtml();
+  const b = $('[data-timer]', holder);
+  if (b) b.onclick = toggleTimer;
+}
+
+/* Ein Takt pro Sekunde für Trainings-Timer und „Kampf läuft“-Banner */
+setInterval(() => {
+  if (!draft || !draft.started) return;
+  const t = fmtClock(elapsedMs(draft));
+  const el = $('#woTime');
+  if (el) el.textContent = '⏱ ' + t;
+  const banner = $('#resumeTime');
+  if (banner) banner.textContent = draft.pausedAt ? '⏸ ' + t : '⏱ ' + t;
+}, 1000);
 
 function workoutFields() {
   const fields = [];
@@ -804,9 +852,11 @@ function viewWorkout() {
       <div class="ex-top">
         <span class="ex-num" style="background:${color}">${ei + 1}</span>
         <h3 class="ex-name">${esc(e.name)}</h3>
-        <button class="ibtn ${perm || e.note ? 'on' : ''}" data-note="${ei}" aria-label="Notiz">📝</button>
-        <button class="ibtn" data-later="${ei}" aria-label="Später machen">⏭</button>
-        <button class="ibtn" data-exmenu="${ei}" aria-label="Mehr">⋯</button>
+        <div class="ex-actions">
+          <button class="ibtn ${perm || e.note ? 'on' : ''}" data-note="${ei}" aria-label="Notiz">📝</button>
+          <button class="ibtn" data-later="${ei}" aria-label="Später machen">⏭</button>
+          <button class="ibtn" data-exmenu="${ei}" aria-label="Mehr">⋯</button>
+        </div>
       </div>
       ${perm ? `<div class="bubble">${esc(perm)}</div>` : ''}
       ${e.note ? `<div class="bubble today"><small>Heute</small>${esc(e.note)}</div>` : ''}
@@ -817,7 +867,11 @@ function viewWorkout() {
     </section>`;
   }).join('');
 
+  const totalSets = draft.entries.reduce((a, e) => a + e.sets.length, 0);
+  const doneSets = draft.entries.reduce((a, e) => a + e.sets.filter((s) => s.done).length, 0);
+
   v.innerHTML = `
+    <div id="timerHolder"></div>
     <div class="wo-head">
       <input type="date" class="field" id="wDate" value="${draft.date}" aria-label="Datum">
     </div>
@@ -828,14 +882,12 @@ function viewWorkout() {
     ${draft.isNew ? '<button class="btn danger" id="wDiscard">Training verwerfen</button>' : '<button class="btn danger" id="wDelete">Training löschen</button>'}
     <div id="restHolder"></div>
     <div class="wo-footer">
-      <div class="clock" id="woClock"></div>
+      <div class="clock">${doneSets}/${totalSets}<small>Sätze</small></div>
       <button class="btn primary" id="wSave">${draft.isNew ? 'K.O. – Beenden!' : 'Speichern'}</button>
     </div>`;
 
   drawRest();
-  drawClock();
-  clearInterval(clockTimer);
-  if (draft.started) clockTimer = setInterval(drawClock, 1000);
+  drawTimer();
 
   const fields = workoutFields();
   const highlight = (key) => {
@@ -849,7 +901,8 @@ function viewWorkout() {
         const kp = $('#keypad').offsetHeight || 0;
         const bottomLimit = window.innerHeight - kp - 20;
         if (r.bottom > bottomLimit) window.scrollBy({ top: r.bottom - bottomLimit + 40, behavior: 'smooth' });
-        else if (r.top < 90) window.scrollBy({ top: r.top - 110, behavior: 'smooth' });
+        const topLimit = $('.topbar').offsetHeight + (($('#woTimer') || {}).offsetHeight || 0) + 12;
+        if (r.bottom <= bottomLimit && r.top < topLimit) window.scrollBy({ top: r.top - topLimit - 10, behavior: 'smooth' });
       });
     }
   };
@@ -969,9 +1022,7 @@ function viewWorkout() {
   $('#wDate').onchange = (e) => {
     if (!e.target.value) return;
     draft.date = e.target.value;
-    if (draft.date !== todayStr()) draft.started = null;
     saveDraft();
-    drawClock();
   };
 
   $('#wAddEx').onclick = () => addExerciseSheet((name) => {
@@ -1057,7 +1108,7 @@ function finishWorkout() {
   const workout = touch({
     id: draft.id, planId: draft.planId, date: draft.date,
     created: (existing && existing.created) || Date.now(),
-    dur: draft.started ? Math.round((Date.now() - draft.started) / 60000) : (existing && existing.dur) || null,
+    dur: draft.started ? Math.max(1, Math.round(elapsedMs(draft) / 60000)) : (existing && existing.dur) || null,
     entries,
   });
   const i = data.workouts.findIndex((w) => w.id === workout.id);
@@ -1065,7 +1116,7 @@ function finishWorkout() {
   save();
 
   const isNew = draft.isNew;
-  draft = null; saveDraft(); stopRest(); Keypad.close(); clearInterval(clockTimer);
+  draft = null; saveDraft(); stopRest(); Keypad.close();
   back();
 
   const sets = entries.reduce((a, e) => a + e.sets.length, 0);
@@ -1076,7 +1127,7 @@ function finishWorkout() {
     <div class="stats">
       <div class="stat"><div class="v">${sets}</div><div class="k">Sätze</div></div>
       <div class="stat"><div class="v">${fmtNum(vol, 0)} kg</div><div class="k">Volumen</div></div>
-      ${workout.dur ? `<div class="stat"><div class="v">${workout.dur} min</div><div class="k">Dauer</div></div>` : ''}
+      ${workout.dur ? `<div class="stat"><div class="v">⏱ ${fmtDur(workout.dur)}</div><div class="k">Trainingszeit</div></div>` : ''}
       <div class="stat"><div class="v">${entries.length}</div><div class="k">Übung${entries.length === 1 ? '' : 'en'}</div></div>
     </div>
     ${prs.map((p) => `<div class="pr"><span style="font-size:28px">🏆</span><div><b>Neuer Rekord: ${esc(p.name)}</b><br><span class="small">${fmtNum(p.max, 2)} kg (vorher ${fmtNum(p.prev, 2)} kg)</span></div></div>`).join('')}
@@ -1142,7 +1193,7 @@ function daySheet(ds) {
     ${ws.length ? ws.map((w) => `
       <button class="row-item" data-w="${w.id}">
         <div class="stripe" style="background:${planColor(w.planId)}"></div>
-        <div class="grow"><div class="t">${esc(planName(w.planId))}${w.dur ? ` · ${w.dur} min` : ''}</div>
+        <div class="grow"><div class="t">${esc(planName(w.planId))}${w.dur ? ` · ⏱ ${fmtDur(w.dur)}` : ''}</div>
         <div class="s">${w.entries.map((e) => esc(e.name)).join(', ')}</div></div><span class="chev">›</span>
       </button>`).join('') : '<p class="hint">An diesem Tag wurde nicht trainiert.</p>'}
     ${data.plans.length ? `<span class="label">Training nachtragen</span>

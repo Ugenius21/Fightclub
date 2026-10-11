@@ -7,6 +7,7 @@ Fightclub ist eine Fitness-App im Comic-Look. Damit verfolgst du deinen Fortschr
 - **Trainingspläne** wie „Push“, „Pull“ oder „Beine“, jeder mit eigener Farbe. Mit „Start!“ geht das Training direkt los.
 - **Übungen** fügst du mit einem Tipp hinzu, auch mehrere hintereinander. Die Reihenfolge änderst du per Ziehen am Griff ≡.
 - **Training erfassen**: Satz · Gewicht (kg) · Wiederholungen. Eingegeben wird über ein eigenes großes Zahlenfeld mit ±2,5-kg- und ±1-Wdh.-Tasten und „Weiter“ zum nächsten Feld. Die iOS-Tastatur mit dem blauen Markierungskasten erscheint dabei nicht. „＋ Satz“ legt einen weiteren Satz mit den gleichen Werten an. Mit ✓ hakst du einen Satz ab („POW!“), dann startet automatisch der Pausen-Timer.
+- **Trainings-Timer** ⏱: startet automatisch mit „Start!“. Er ist als große Stoppuhr oben immer sichtbar, lässt sich pausieren und läuft auch weiter, wenn du die App zwischendurch schließt. Die Trainingszeit (ohne Pausen) wird gespeichert und im K.O.-Bildschirm, im Kalender und im Excel-Export angezeigt. Bei nachgetragenen Trainings startest du den Timer bei Bedarf selbst.
 - **Werte vom letzten Training** sind vorausgefüllt (grau, bis du sie änderst oder abhakst). Darunter steht, was du letztes Mal geschafft hast.
 - **Maschine besetzt?** ⏭ schiebt die Übung ans Ende. Über ⇅ sortierst du das ganze Training um, auf Wunsch auch dauerhaft im Plan.
 - **Notizen pro Übung** 📝: eine dauerhafte Notiz (z. B. Sitzposition, Einstellung) und eine Notiz für heute (z. B. Muskelgefühl). Die Notiz von heute siehst du beim nächsten Mal unter „Letztes Mal“.

@@ -239,15 +239,34 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
 .ex-chip.full { background: var(--green); color: #fff; }
 .ex-chip.part { background: var(--yellow); }
 
-.ex-card { scroll-margin-top: calc(var(--safe-top) + 80px); }
+.ex-card { scroll-margin-top: calc(var(--topbar-h, 70px) + 74px); }
+
+#timerHolder { position: sticky; top: var(--topbar-h, 70px); z-index: 15; margin: -16px -16px 16px; }
+.wo-timer {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px;
+  background-color: var(--ink); color: var(--yellow);
+  background-image: radial-gradient(rgba(255, 255, 255, .08) 1.3px, transparent 1.6px); background-size: 9px 9px;
+  border-bottom: var(--border);
+}
+.wo-timer .time { font: 400 36px/1 var(--display); letter-spacing: 1.5px; padding-top: 3px; white-space: nowrap; }
+.wo-timer .lbl2 { font: 700 12px/1.1 var(--body); color: #fff; }
+.wo-timer button {
+  flex: none; background: var(--yellow); color: var(--ink); border: 2.5px solid var(--yellow); border-radius: 10px;
+  font: 400 18px/1 var(--display); letter-spacing: .5px; padding: 8px 12px 6px;
+}
+.wo-timer button:active { transform: translate(1px, 1px); }
+.wo-timer.paused { background-color: #5a4b3c; }
+.wo-timer.paused .time { color: #fff; animation: blink 1.2s infinite; }
 .ex-card.skipped { opacity: .6; }
-.ex-top { display: flex; align-items: center; gap: 8px; }
+.ex-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ex-actions { display: flex; gap: 8px; margin-left: auto; }
 .ex-num {
   flex: none; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid var(--ink);
   display: flex; align-items: center; justify-content: center;
   font: 400 19px/1 var(--display); color: #fff; text-shadow: 1.5px 1.5px 0 var(--ink);
 }
-.ex-name { flex: 1; min-width: 0; margin: 0; font: 400 24px/1.05 var(--display); letter-spacing: .8px; overflow-wrap: break-word; -webkit-hyphens: auto; hyphens: auto; }
+.ex-name { flex: 1 1 auto; margin: 0; font: 400 24px/1.05 var(--display); letter-spacing: .8px; max-width: calc(100% - 44px); overflow-wrap: anywhere; }
 .last { margin: 8px 0 10px; font-size: 13px; font-weight: 400; color: var(--muted); }
 .last b { color: var(--ink); font-weight: 700; }
 
@@ -277,6 +296,7 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
 }
 .val .u { font: 700 12px/1 var(--body); color: var(--muted); }
 .val.ghost { color: #a39684; }
+.val.empty-val { align-items: center; padding-top: 0; }
 .val.empty-val { color: #c5b9a5; }
 .val.active { background: var(--yellow); color: var(--ink); box-shadow: 3px 3px 0 var(--ink); transform: translate(-1px, -1px); }
 .chk {
