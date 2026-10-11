@@ -69,8 +69,9 @@ const Scanner = (() => {
     return null;
   }
 
-  /** Live-Scan mit der Rückkamera. onCode(code) wird genau einmal aufgerufen. */
-  async function start(video, onCode, onStatus) {
+  /** Live-Scan mit der Rückkamera. onCode(code) wird genau einmal aufgerufen.
+      accept(code) kann Codes überspringen (z. B. die gerade gescannte Zutat). */
+  async function start(video, onCode, onStatus, accept) {
     stop();
     running = true;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -99,7 +100,7 @@ const Scanner = (() => {
         busy = true;
         try {
           const code = pickCode(await detector.detect(video));
-          if (code && running) { stop(); onCode(code); return; }
+          if (code && running && (!accept || accept(code))) { stop(); onCode(code); return; }
         } catch (e) { /* einzelner Frame fehlgeschlagen – weiter */ }
         busy = false;
       }

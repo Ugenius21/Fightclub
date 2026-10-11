@@ -597,3 +597,14 @@ body.food-mode .topbar { background-color: var(--green); }
 }
 .kcal-calc b { font: 400 24px/1.1 var(--display); color: var(--ink); letter-spacing: .5px; }
 .kcal-calc small { font-size: 10px; }
+
+/* Rezepte */
+.servings { margin: 14px 0 4px; font-size: 16px; }
+.servings b { font: 400 28px/1 var(--display); min-width: 40px; text-align: center; padding-top: 3px; }
+.recipe-sum .big-kcal { font: 400 32px/1.05 var(--display); letter-spacing: .5px; color: var(--green); -webkit-text-stroke: 1px var(--ink); }
+.recipe-sum .mid-kcal { font: 400 22px/1.1 var(--display); }
+.recipe-sum .center { flex: none; }
+.emoji-big { font-size: 26px; flex: none; }
+.scan-top .scan-count { display: inline-block; margin-top: 8px; background: var(--yellow); color: var(--ink); border: 2px solid var(--ink); border-radius: 10px; padding: 3px 10px; font-size: 14px; }
+.scan-bottom .btn.scan-done { flex: 1.2; width: auto; }
+.panel > .food-row:first-child { border-top: 0; }

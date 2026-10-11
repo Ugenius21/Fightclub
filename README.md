@@ -89,6 +89,7 @@ Ein eigener Bereich (Tab **Ernährung**, grüne Kopfzeile) zum Kalorienzählen w
 - **Unbekanntes Produkt?** Einmal selbst anlegen: Eiweiß, Kohlenhydrate und Fett pro 100 g von der Verpackung eintragen, die Kalorien rechnet die App aus (Eiweiß und Kohlenhydrate × 4, Fett × 9 kcal/g). Beim nächsten Scan wird es sofort erkannt, auch offline und auf allen Geräten.
 - **Suche:** Zuerst deine eigenen und zuletzt gegessenen Lebensmittel (sofort, offline), mit 🔍 zusätzlich online in Open Food Facts.
 - **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **⚡ Schnell-Eintrag**: nur die Makros eintippen, die Kalorien werden berechnet.
+- **🍲 Rezepte** für Gerichte, die du oft isst: Name, Anzahl Portionen und Zutaten. Kalorien und Makros werden für das ganze Gericht und pro Portion berechnet (optional mit dem Gewicht nach dem Kochen). **Per Scan:** Zutat scannen, Menge wählen, und der Scanner öffnet sich sofort für die nächste Zutat, bis du auf *✓ Fertig* tippst. Im Tagebuch erscheinen Rezepte beim Hinzufügen ganz oben und lassen sich mit *½ / 1 / 1½ / 2 Portionen* eintragen.
 - **Ziele:** Auf die Bilanz tippen und die Makroziele eintragen, das Kalorienziel ergibt sich daraus.
 - **Statistik:** 14-Tage-Diagramm, Durchschnittswerte und die Verteilung von Eiweiß, Kohlenhydraten und Fett.
 - **Produkte:** Deine eigenen und gescannten Lebensmittel verwalten.
@@ -107,6 +108,7 @@ Die Kamera fragt beim ersten Scan nach Erlaubnis. Wurde sie abgelehnt: *iPhone-E
 | Körpergewicht | Datum, Gewicht |
 | Ernährung | Pro Tag: Kalorien, Eiweiß, Kohlenhydrate, Fett |
 | Mahlzeiten | Jeder Eintrag: Datum, Mahlzeit, Lebensmittel, Marke, Menge, Kalorien, Makros |
+| Rezepte | Jede Zutat jedes Rezepts mit Menge, Kalorien und Makros |
 | Notizen | Dauerhafte Notizen pro Übung |
 
 Datumswerte sind echte Excel-Daten. Filter und fixierte Kopfzeile sind schon gesetzt, sodass du direkt Pivot-Tabellen oder Diagramme bauen kannst.
@@ -156,6 +158,7 @@ docs/                           Web-App
 ├── js/sync.js                    Login per E-Mail + Synchronisierung (Supabase REST)
 ├── js/xlsx.js                    Excel-Export ohne externe Bibliothek
 ├── js/food.js                    Ernährung: Tagebuch, Suche, Open Food Facts
+├── js/recipes.js                 Rezepte (Zutaten scannen/suchen, Portionen)
 ├── js/scanner.js                 Strichcode-Scanner (Kamera/Foto)
 ├── vendor/                       Strichcode-Erkennung (barcode-detector + ZXing-C++ WebAssembly, MIT/Apache-2.0)
 └── fonts/                        Bangers & Comic Neue (SIL Open Font License)

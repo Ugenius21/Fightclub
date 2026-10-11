@@ -7,7 +7,7 @@
    ========================================================= */
 
 /** Wird im Profil angezeigt – so lässt sich prüfen, ob die neueste Version geladen ist. */
-const APP_VERSION = '8';
+const APP_VERSION = '9';
 
 const STORE_KEY = 'fightclub-data';
 const DRAFT_KEY = 'fightclub-draft';
@@ -1646,6 +1646,13 @@ function exportExcel() {
       { header: 'Datum', type: 'date', width: 12 }, { header: 'Mahlzeit', width: 13 }, { header: 'Lebensmittel', width: 30 }, { header: 'Marke', width: 16 },
       { header: 'Menge', type: 'int', width: 8 }, { header: 'Einheit', width: 8 }, { header: 'Kalorien (kcal)', type: 'int', width: 15 },
       { header: 'Eiweiß (g)', type: 'num', width: 11 }, { header: 'Kohlenhydrate (g)', type: 'num', width: 17 }, { header: 'Fett (g)', type: 'num', width: 9 }] },
+    { name: 'Rezepte', rows: data.recipes.flatMap((r) => r.items.map((it) => {
+        const n = calcNutrition(it.per100, it.amount);
+        return [r.name, r.servings, it.name, it.brand || '', it.amount, n.kcal, n.p, n.c, n.f];
+      })), columns: [
+      { header: 'Rezept', width: 26 }, { header: 'Portionen', type: 'int', width: 10 }, { header: 'Zutat', width: 30 }, { header: 'Marke', width: 16 },
+      { header: 'Menge (g)', type: 'int', width: 10 }, { header: 'Kalorien (kcal)', type: 'int', width: 15 }, { header: 'Eiweiß (g)', type: 'num', width: 11 },
+      { header: 'Kohlenhydrate (g)', type: 'num', width: 17 }, { header: 'Fett (g)', type: 'num', width: 9 }] },
     { name: 'Notizen', rows: notes, columns: [{ header: 'Übung', width: 26 }, { header: 'Notiz', width: 60 }] },
   ]);
   shareFile(bytes, `fightclub-${todayStr()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

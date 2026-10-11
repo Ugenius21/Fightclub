@@ -1,8 +1,8 @@
 // Hält die App offline verfügbar. Bei Änderungen an den Dateien VERSION erhöhen.
-const VERSION = 'fightclub-v8';
+const VERSION = 'fightclub-v9';
 const FILES = [
   './', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.webmanifest',
-  'js/data.js', 'js/sync.js', 'js/xlsx.js', 'js/scanner.js', 'js/food.js',
+  'js/data.js', 'js/sync.js', 'js/xlsx.js', 'js/scanner.js', 'js/food.js', 'js/recipes.js',
   'vendor/barcode-detector.js', 'vendor/zxing_reader.wasm',
   'fonts/bangers.woff2', 'fonts/comicneue-400.woff2', 'fonts/comicneue-700.woff2',
   'icon-soap-180.png', 'icon-soap-192.png', 'icon-soap-512.png',
