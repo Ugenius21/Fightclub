@@ -7,7 +7,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Fightclub">
-  <meta name="theme-color" content="#0e0e10">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#e63027">
   <title>Fightclub</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-180.png">
@@ -16,18 +17,19 @@
 </head>
 <body>
   <header class="topbar">
-    <button id="backBtn" class="icon-btn off" aria-label="Zurück">‹</button>
+    <button id="backBtn" class="back-btn off" aria-label="Zurück">‹</button>
     <h1 id="title">Fightclub</h1>
     <div id="topAction"></div>
   </header>
 
   <main id="view"></main>
 
-  <nav class="tabbar">
-    <button data-tab="plans" class="active"><span>🏋️</span>Pläne</button>
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="plans" class="active"><span>🥊</span>Training</button>
     <button data-tab="calendar"><span>📅</span>Kalender</button>
     <button data-tab="progress"><span>📈</span>Fortschritt</button>
-    <button data-tab="weight"><span>⚖️</span>Gewicht</button>
+    <button data-tab="body"><span>⚖️</span>Körper</button>
+    <button data-tab="profile"><span>👤</span>Profil</button>
   </nav>
 
   <div id="sheet" class="sheet" hidden>
@@ -35,6 +37,13 @@
     <div class="sheet-card" id="sheetCard"></div>
   </div>
 
+  <div id="keypad" class="keypad" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/xlsx.js"></script>
+  <script src="js/mfp.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
