@@ -6,6 +6,9 @@
    über Supabase zwischen deinen Geräten synchronisiert.
    ========================================================= */
 
+/** Wird im Profil angezeigt – so lässt sich prüfen, ob die neueste Version geladen ist. */
+const APP_VERSION = '7';
+
 const STORE_KEY = 'fightclub-data';
 const DRAFT_KEY = 'fightclub-draft';
 
@@ -1524,7 +1527,7 @@ function viewProfile() {
       <label class="row" style="margin:12px 0"><input type="checkbox" id="soundChk" ${st.sound ? 'checked' : ''} style="width:22px;height:22px;accent-color:#e63027"><span>Ton am Ende der Pause</span></label>
       <button class="btn small" id="goalsBtn">🎯 Ernährungsziele: ${fmtNum(st.kcalGoal, 0)} kcal</button>
     </div>
-    <p class="hint center small">Fightclub 🥊 · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>`;
+    <p class="hint center small">Fightclub 🥊 Version ${APP_VERSION} · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>`;
 
   if ($('#loginForm')) {
     const msg = (t) => { $('#authMsg').textContent = t; };
@@ -1667,6 +1670,28 @@ function importBackup(e) {
     save(); toast('Sicherung importiert'); render();
   }).catch((err) => alert('Import fehlgeschlagen: ' + err.message));
 }
+
+/* =========================================================
+   iPHONE: Gerüst fest verankern
+   Safari lässt sonst die ganze Seite nachfedern, wenn man auf Kopfzeile
+   oder Tab-Leiste wischt – dann wandert die Leiste mit. Und nach dem
+   Schließen der Tastatur bleibt die Ansicht manchmal verschoben.
+   ========================================================= */
+
+const SCROLLABLE = 'main, .sheet-card, .kp-chiprow, .kp-chips, .ex-strip, .scanner, .reorder';
+document.addEventListener('touchmove', (e) => {
+  if (e.touches.length > 1) { e.preventDefault(); return; } // kein Zoomen
+  const box = e.target.closest && e.target.closest(SCROLLABLE);
+  if (!box) e.preventDefault(); // Wischen außerhalb scrollbarer Bereiche bewegt nichts
+}, { passive: false });
+
+const resetViewport = () => {
+  if (window.scrollY || window.scrollX || document.scrollingElement.scrollTop) window.scrollTo(0, 0);
+};
+document.addEventListener('focusout', () => setTimeout(resetViewport, 60));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', () => setTimeout(resetViewport, 60));
+window.addEventListener('scroll', () => { if (!document.activeElement || !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) resetViewport(); });
+document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS-Pinch-Zoom aus
 
 /* =========================================================
    START

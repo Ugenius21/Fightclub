@@ -1,5 +1,5 @@
 // Hält die App offline verfügbar. Bei Änderungen an den Dateien VERSION erhöhen.
-const VERSION = 'fightclub-v6';
+const VERSION = 'fightclub-v7';
 const FILES = [
   './', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'js/data.js', 'js/sync.js', 'js/xlsx.js', 'js/scanner.js', 'js/food.js',
@@ -9,7 +9,9 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION)
+    .then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -21,11 +23,13 @@ self.addEventListener('activate', (e) => {
 });
 
 // Nur eigene Dateien cachen (nie die Sync-Anfragen an Supabase).
-// Erst Netzwerk (damit Updates sofort ankommen), sonst Cache.
+// Erst Netzwerk – am Browser-Cache vorbei (cache: 'no-cache' prüft immer beim Server nach),
+// damit Updates sofort ankommen. Offline aus dem Cache.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
-    fetch(e.request)
+    // Neue Anfrage nur aus der URL bauen – Seitenaufrufe (mode „navigate“) lassen sich nicht mit Optionen kopieren.
+    fetch(new Request(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }))
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();

@@ -34,7 +34,7 @@
    immer bündig am unteren Rand (kein Verrutschen durch Nachfedern,
    Tastatur oder den Bereich am Home-Balken). */
 html {
-  height: 100%; overflow: hidden;
+  height: 100%; overflow: hidden; overscroll-behavior: none;
   touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
   /* Falls iOS oben/unten einen Rand freilässt, hat er die Farbe von Kopfzeile bzw. Tab-Leiste. */
   background: linear-gradient(var(--top-color, var(--red)) 0 50%, var(--white) 50% 100%);
@@ -44,7 +44,9 @@ html {
 body {
   position: fixed; inset: 0;
   display: flex; flex-direction: column;
-  margin: 0; overflow: hidden;
+  margin: 0; overflow: hidden; overscroll-behavior: none;
+  /* Texte wie in einer App: nicht markierbar, kein Lupen-/Kopiermenü */
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   color: var(--ink);
   font: 700 16px/1.35 var(--body);
   background-color: var(--paper);
@@ -54,6 +56,9 @@ body {
 }
 
 button, input, select, textarea { font: inherit; color: inherit; }
+/* In Eingabefeldern muss man weiterhin tippen und markieren können. */
+input, textarea, select, [contenteditable] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+img, svg { -webkit-user-drag: none; }
 button {
   cursor: pointer;
   touch-action: manipulation;
@@ -473,7 +478,7 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
   position: absolute; left: 0; right: 0; bottom: 0; max-height: 90vh; overflow-y: auto;
   background: var(--paper); border-top: var(--border); border-radius: 22px 22px 0 0;
   padding: 20px 16px calc(var(--safe-bottom) + 20px); max-width: 640px; margin: 0 auto;
-  animation: up .2s ease-out;
+  animation: up .2s ease-out; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 .sheet-card h2 { margin: 0 0 10px; font: 400 32px/1 var(--display); letter-spacing: 1px; transform: rotate(-1deg); }
 @keyframes up { from { transform: translateY(40px); opacity: 0; } }
@@ -579,3 +584,12 @@ body.food-mode .topbar { background-color: var(--green); }
 .scan-bottom { position: absolute; left: 16px; right: 16px; bottom: calc(var(--safe-bottom) + 22px); display: flex; gap: 10px; }
 .scan-bottom .btn { margin: 0; flex: 1; }
 .scan-bottom .btn.primary { flex: none; width: 64px; }
+
+/* Berechnete Kalorien (aus Makros) */
+.kcal-calc {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  border: 2.5px dashed var(--ink); border-radius: 12px; background: #fffbe0; padding: 6px 4px; margin-top: 4px;
+  font-size: 12px; color: var(--muted); text-align: center;
+}
+.kcal-calc b { font: 400 24px/1.1 var(--display); color: var(--ink); letter-spacing: .5px; }
+.kcal-calc small { font-size: 10px; }

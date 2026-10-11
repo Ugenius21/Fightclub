@@ -21,6 +21,8 @@ const MEALS = [
 const mealInfo = (m) => MEALS.find((x) => x[0] === m) || MEALS[3];
 const foodState = { date: null, tab: 'diary', foodQuery: '' };
 const round1 = (x) => Math.round((Number(x) || 0) * 10) / 10;
+/** Kalorien aus Makros: Eiweiß und Kohlenhydrate 4 kcal/g, Fett 9 kcal/g. */
+const kcalFromMacros = (p, c, f) => Math.round((Number(p) || 0) * 4 + (Number(c) || 0) * 4 + (Number(f) || 0) * 9);
 
 function defaultMeal() {
   const h = new Date().getHours();
@@ -208,7 +210,7 @@ function viewDiary(v) {
       </div>
     </button>
     ${meals}
-    <button class="btn dashed" id="quickAdd">⚡ Schnell-Eintrag (nur Kalorien)</button>`;
+    <button class="btn dashed" id="quickAdd">⚡ Schnell-Eintrag (Makros)</button>`;
 
   $('#dPrev').onclick = () => { foodState.date = addDays(d, -1); render(); };
   $('#dNext').onclick = () => { foodState.date = addDays(d, 1); render(); };
@@ -432,26 +434,30 @@ function portionSheet(food, meal, entry) {
   });
 }
 
-/** Schnell-Eintrag: nur Kalorien (und optional Makros). */
+/** Schnell-Eintrag: Makros eintragen, Kalorien werden daraus berechnet. */
 function quickEntry(meal, entry) {
-  const tmp = entry ? { kcal: entry.kcal, p: entry.p, c: entry.c, f: entry.f, meal: entryMeal(entry) } : { kcal: null, p: null, c: null, f: null, meal };
+  const tmp = entry ? { p: entry.p || null, c: entry.c || null, f: entry.f || null, meal: entryMeal(entry) } : { p: null, c: null, f: null, meal };
+  // Alte Einträge ohne Makros behalten ihre Kalorien, bis Makros eingetragen werden.
+  const kcal = () => (tmp.p || tmp.c || tmp.f ? kcalFromMacros(tmp.p, tmp.c, tmp.f) : (entry && entry.kcal) || 0);
+  const preview = () => `= <b>${fmtNum(kcal(), 0)} kcal</b> <span class="hint small">(Eiweiß & KH × 4, Fett × 9)</span>`;
   const mk = (key, label, unit, step) => ({ key, label, unit, decimals: 0, int: true, step, get: () => tmp[key], set: (x) => { tmp[key] = x == null ? null : Math.round(x); } });
   Keypad.open({
     owner: 'food',
     chips: true,
-    fields: [mk('kcal', 'Kalorien', 'kcal', 50), mk('p', 'Eiweiß', 'g', 5), mk('c', 'Kohlenh.', 'g', 5), mk('f', 'Fett', 'g', 5)],
+    fields: [mk('p', 'Eiweiß', 'g', 5), mk('c', 'Kohlenhydrate', 'g', 5), mk('f', 'Fett', 'g', 5)],
     title: () => `<b>⚡ ${entry ? 'Eintrag ändern' : 'Schnell-Eintrag'}</b>`,
-    extraHtml: () => `${mealChipsHtml(tmp.meal)}${entry ? '<button class="kp-del" data-del>🗑 Eintrag entfernen</button>' : ''}`,
+    extraHtml: () => `${mealChipsHtml(tmp.meal)}<div class="kp-preview" id="kpPreview">${preview()}</div>${entry ? '<button class="kp-del" data-del>🗑 Eintrag entfernen</button>' : ''}`,
     onDraw: (root) => {
       bindMealChips(root, tmp);
       const del = $('[data-del]', root);
       if (del) del.onclick = () => { removeRec('food', entry.id); save(); Keypad.close(); toast('Entfernt'); render(); };
     },
+    onChange: () => { const p = $('#kpPreview'); if (p) p.innerHTML = preview(); },
     okLabel: 'Speichern',
     onCancel: () => {},
     onDone: () => {
-      if (!tmp.kcal && !tmp.p && !tmp.c && !tmp.f) return;
-      const vals = { meal: tmp.meal, kcal: tmp.kcal || 0, p: tmp.p || 0, c: tmp.c || 0, f: tmp.f || 0 };
+      if (!kcal()) { toast('Bitte Makros eintragen'); return; }
+      const vals = { meal: tmp.meal, kcal: kcal(), p: tmp.p || 0, c: tmp.c || 0, f: tmp.f || 0 };
       if (entry) { Object.assign(entry, vals); touch(entry); }
       else data.food.push(touch({ id: uid(), date: foodState.date || todayStr(), name: 'Schnell-Eintrag', src: 'quick', ...vals }));
       save(); toast('Eingetragen ⚡');
@@ -483,25 +489,29 @@ function customFoodSheet(food, meal) {
       <button type="button" data-unit="ml" class="${f.unit === 'ml' ? 'on' : ''}">pro 100 ml</button>
     </div>
     <div class="nut-grid">
-      <label>Kalorien (kcal) *<input class="field" id="cfKcal" inputmode="decimal" value="${val(f.per100.kcal)}"></label>
       <label>Eiweiß (g)<input class="field" id="cfP" inputmode="decimal" value="${val(f.per100.p)}"></label>
       <label>Kohlenhydrate (g)<input class="field" id="cfC" inputmode="decimal" value="${val(f.per100.c)}"></label>
       <label>Fett (g)<input class="field" id="cfF" inputmode="decimal" value="${val(f.per100.f)}"></label>
+      <div class="kcal-calc"><span>Kalorien</span><b id="cfKcal">–</b><small>berechnet</small></div>
     </div>
     <label class="lbl">Portionsgröße (optional)</label>
     <input class="field" id="cfServ" inputmode="decimal" value="${val(f.serving)}" placeholder="z. B. 40 – für den Knopf „1 Portion“">
-    <p class="hint small">Tipp: Steht auf der Verpackung nur kJ, teile den Wert durch 4,184.</p>
+    <p class="hint small">Die Kalorien werden aus den Makros berechnet: Eiweiß und Kohlenhydrate × 4, Fett × 9.</p>
     <button class="btn primary" id="cfSave">${meal ? 'Speichern & eintragen' : 'Speichern'}</button>
   `, (root) => {
     $$('[data-unit]', root).forEach((b) => b.onclick = () => {
       f.unit = b.dataset.unit;
       $$('[data-unit]', root).forEach((x) => x.classList.toggle('on', x === b));
     });
+    const calc = () => kcalFromMacros(parse($('#cfP').value), parse($('#cfC').value), parse($('#cfF').value));
+    const showKcal = () => { $('#cfKcal').textContent = calc() ? `${fmtNum(calc(), 0)} kcal` : '–'; };
+    ['#cfP', '#cfC', '#cfF'].forEach((id) => $(id).addEventListener('input', showKcal));
+    showKcal();
     $('#cfSave').onclick = () => {
       const name = $('#cfName').value.trim();
-      const kcal = parse($('#cfKcal').value);
+      const kcal = calc();
       if (!name) { $('#cfName').focus(); return; }
-      if (kcal == null) { $('#cfKcal').focus(); return; }
+      if (!kcal) { $('#cfP').focus(); toast('Bitte Makros eintragen'); return; }
       const rec = editing ? data.foods.find((x) => x.id === food.id) : { id: f.barcode ? 'off-' + f.barcode : uid() };
       Object.assign(rec, {
         name, brand: $('#cfBrand').value.trim(), unit: f.unit, barcode: f.barcode || '',
@@ -528,27 +538,26 @@ function goalsSheet() {
   const parse = (s) => { const n = parseFloat(String(s || '').replace(',', '.')); return isFinite(n) && n > 0 ? Math.round(n) : null; };
   openSheet(`
     <h2>🎯 Tagesziele</h2>
+    <p class="hint">Trag deine Makros ein – das Kalorienziel wird daraus berechnet.</p>
     <div class="nut-grid">
-      <label>Kalorien (kcal)<input class="field" id="gK" inputmode="numeric" value="${st.kcalGoal || ''}"></label>
       <label>Eiweiß (g)<input class="field" id="gP" inputmode="numeric" value="${st.proteinGoal || ''}"></label>
       <label>Kohlenhydrate (g)<input class="field" id="gC" inputmode="numeric" value="${st.carbsGoal || ''}"></label>
       <label>Fett (g)<input class="field" id="gF" inputmode="numeric" value="${st.fatGoal || ''}"></label>
+      <div class="kcal-calc"><span>Kalorienziel</span><b id="gK">–</b><small>berechnet</small></div>
     </div>
-    <button class="btn" id="gAuto" style="margin-top:16px">Makros aus Kalorien berechnen<br><span class="small" style="font-family:var(--body)">30 % Eiweiß · 45 % Kohlenhydrate · 25 % Fett</span></button>
+    <p class="hint small">Eiweiß und Kohlenhydrate × 4 kcal, Fett × 9 kcal pro Gramm.</p>
     <button class="btn primary" id="gSave">Speichern</button>
   `, () => {
-    $('#gAuto').onclick = () => {
-      const k = parse($('#gK').value);
-      if (!k) { $('#gK').focus(); return; }
-      $('#gP').value = Math.round((k * 0.3) / 4);
-      $('#gC').value = Math.round((k * 0.45) / 4);
-      $('#gF').value = Math.round((k * 0.25) / 9);
-    };
+    const calc = () => kcalFromMacros(parse($('#gP').value), parse($('#gC').value), parse($('#gF').value));
+    const showKcal = () => { $('#gK').textContent = calc() ? `${fmtNum(calc(), 0)} kcal` : '–'; };
+    ['#gP', '#gC', '#gF'].forEach((id) => $(id).addEventListener('input', showKcal));
+    showKcal();
     $('#gSave').onclick = () => {
-      st.kcalGoal = parse($('#gK').value) || st.kcalGoal;
+      if (!calc()) { $('#gP').focus(); toast('Bitte Makros eintragen'); return; }
       st.proteinGoal = parse($('#gP').value);
       st.carbsGoal = parse($('#gC').value);
       st.fatGoal = parse($('#gF').value);
+      st.kcalGoal = calc();
       touchSettings(); save(); closeSheet(); render();
     };
   });

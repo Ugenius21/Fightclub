@@ -86,10 +86,10 @@ Ein eigener Bereich (Tab **Ernährung**, grüne Kopfzeile) zum Kalorienzählen w
 
 - **Tagebuch** mit Frühstück, Mittagessen, Abendessen und Snacks, oben die Bilanz **Ziel − Essen = Übrig** sowie Balken für Eiweiß, Kohlenhydrate und Fett. Mit ‹ › oder durch Tippen aufs Datum wechselst du den Tag.
 - **📷 Strichcode scannen:** Die Kamera erkennt den Strichcode auf der Verpackung. Die Nährwerte kommen aus [Open Food Facts](https://world.openfoodfacts.org), einer freien Datenbank mit sehr vielen deutschen Produkten. Danach nur noch die Menge wählen (Portion, 50 g, 100 g … oder eintippen) und **Hinzufügen**. Klappt die Live-Kamera nicht, geht es auch per **Foto** oder durch **Eintippen** der Ziffern.
-- **Unbekanntes Produkt?** Einmal selbst anlegen (Nährwerte pro 100 g von der Verpackung). Beim nächsten Scan wird es sofort erkannt, auch offline und auf allen Geräten.
+- **Unbekanntes Produkt?** Einmal selbst anlegen: Eiweiß, Kohlenhydrate und Fett pro 100 g von der Verpackung eintragen, die Kalorien rechnet die App aus (Eiweiß und Kohlenhydrate × 4, Fett × 9 kcal/g). Beim nächsten Scan wird es sofort erkannt, auch offline und auf allen Geräten.
 - **Suche:** Zuerst deine eigenen und zuletzt gegessenen Lebensmittel (sofort, offline), mit 🔍 zusätzlich online in Open Food Facts.
-- **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **⚡ Schnell-Eintrag** für reine Kalorienwerte.
-- **Ziele:** Auf die Bilanz tippen, um Kalorien- und Makroziele festzulegen (oder die Makros aus den Kalorien berechnen zu lassen).
+- **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **⚡ Schnell-Eintrag**: nur die Makros eintippen, die Kalorien werden berechnet.
+- **Ziele:** Auf die Bilanz tippen und die Makroziele eintragen, das Kalorienziel ergibt sich daraus.
 - **Statistik:** 14-Tage-Diagramm, Durchschnittswerte und die Verteilung von Eiweiß, Kohlenhydraten und Fett.
 - **Produkte:** Deine eigenen und gescannten Lebensmittel verwalten.
 
