@@ -36,22 +36,20 @@
 html {
   height: 100%; overflow: hidden; overscroll-behavior: none;
   touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
-  /* Falls iOS oben/unten einen Rand freilässt, hat er die Farbe von Kopfzeile bzw. Tab-Leiste. */
-  background: linear-gradient(var(--top-color, var(--red)) 0 50%, var(--white) 50% 100%);
+  /* iOS füllt Bereiche außerhalb der App (z. B. am Home-Balken) mit dieser Farbe –
+     sie entspricht der Tab-Leiste, damit unten kein andersfarbiger Streifen entsteht. */
+  background-color: var(--white);
 }
-:root:has(body.food-mode) { --top-color: var(--green); }
 
 body {
-  position: fixed; inset: 0;
+  position: fixed; left: 0; right: 0; top: var(--vv-top, 0px); height: var(--vv-h, 100%);
   display: flex; flex-direction: column;
   margin: 0; overflow: hidden; overscroll-behavior: none;
   /* Texte wie in einer App: nicht markierbar, kein Lupen-/Kopiermenü */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   color: var(--ink);
   font: 700 16px/1.35 var(--body);
-  background-color: var(--paper);
-  background-image: radial-gradient(rgba(23, 18, 15, .09) 1.3px, transparent 1.6px);
-  background-size: 12px 12px;
+  background-color: var(--white);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -105,10 +103,15 @@ button:focus { outline: none; }
 
 main {
   flex: 1 1 auto; min-height: 0; width: 100%;
+  background-color: var(--paper);
+  background-image: radial-gradient(rgba(23, 18, 15, .09) 1.3px, transparent 1.6px);
+  background-size: 12px 12px;
   overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
   padding: 16px max(16px, calc((100% - 608px) / 2)) calc(28px + var(--kp-h));
 }
 body.workout-mode main { padding-bottom: calc(150px + var(--safe-bottom) + var(--kp-h)); }
+body.kb-open .tabbar, body.kb-open .wo-footer, body.kb-open #restHolder { display: none; }
+body.kb-open main { padding-bottom: 28px; }
 
 /* ---------- Tableiste ---------- */
 .tabbar {
@@ -472,14 +475,15 @@ button.row-item:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 v
 .reorder li.dragging { background: var(--yellow); transform: scale(1.03) rotate(-1deg); box-shadow: 5px 5px 0 var(--ink); position: relative; z-index: 2; }
 
 /* ---------- Sheet ---------- */
-.sheet { position: fixed; inset: 0; z-index: 50; }
+.sheet { position: fixed; left: 0; right: 0; top: var(--vv-top, 0px); height: var(--vv-h, 100%); z-index: 50; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(23, 18, 15, .5); }
 .sheet-card {
-  position: absolute; left: 0; right: 0; bottom: 0; max-height: 90vh; overflow-y: auto;
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 92%; overflow-y: auto;
   background: var(--paper); border-top: var(--border); border-radius: 22px 22px 0 0;
   padding: 20px 16px calc(var(--safe-bottom) + 20px); max-width: 640px; margin: 0 auto;
   animation: up .2s ease-out; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
+body.kb-open .sheet-card { padding-bottom: 20px; }
 .sheet-card h2 { margin: 0 0 10px; font: 400 32px/1 var(--display); letter-spacing: 1px; transform: rotate(-1deg); }
 @keyframes up { from { transform: translateY(40px); opacity: 0; } }
 

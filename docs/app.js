@@ -7,7 +7,7 @@
    ========================================================= */
 
 /** Wird im Profil angezeigt – so lässt sich prüfen, ob die neueste Version geladen ist. */
-const APP_VERSION = '7';
+const APP_VERSION = '8';
 
 const STORE_KEY = 'fightclub-data';
 const DRAFT_KEY = 'fightclub-draft';
@@ -1689,7 +1689,48 @@ const resetViewport = () => {
   if (window.scrollY || window.scrollX || document.scrollingElement.scrollTop) window.scrollTo(0, 0);
 };
 document.addEventListener('focusout', () => setTimeout(resetViewport, 60));
-if (window.visualViewport) window.visualViewport.addEventListener('resize', () => setTimeout(resetViewport, 60));
+
+/* Beim Tippen mit der iPhone-Tastatur schiebt iOS die ganze Seite hoch.
+   Stattdessen passt sich das App-Gerüst dem sichtbaren Bereich über der
+   Tastatur an: Kopfzeile und Eingabefeld bleiben stehen, die Tab-Leiste
+   wird so lange ausgeblendet. */
+function syncViewport() {
+  const vv = window.visualViewport;
+  const root = document.documentElement.style;
+  if (!vv) return;
+  const keyboard = window.innerHeight - vv.height > 120;
+  root.setProperty('--vv-h', (keyboard ? vv.height : window.innerHeight) + 'px');
+  root.setProperty('--vv-top', (keyboard ? vv.offsetTop : 0) + 'px');
+  document.body.classList.toggle('kb-open', keyboard);
+  if (!keyboard) setTimeout(resetViewport, 60);
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', syncViewport);
+  window.visualViewport.addEventListener('scroll', syncViewport);
+}
+window.addEventListener('orientationchange', () => setTimeout(syncViewport, 300));
+
+/* Home-Bildschirm-App auf dem iPhone: Reicht die App nicht bis zum unteren
+   Bildschirmrand (iOS lässt den Bereich am Home-Balken dann frei), entfällt
+   der zusätzliche Abstand für den Home-Balken – sonst wäre er doppelt. */
+function fitSafeArea() {
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
+  document.body.appendChild(probe);
+  const safeTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+  const safeBottom = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+  probe.remove();
+  const portrait = window.innerHeight >= window.innerWidth;
+  const screenH = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+  const gap = standalone && safeTop > 0 ? screenH - window.innerHeight : 0;
+  const root = document.documentElement.style;
+  if (gap >= 10 && safeBottom > 0) root.setProperty('--safe-bottom', '0px');
+  else root.removeProperty('--safe-bottom');
+}
+fitSafeArea();
+syncViewport();
+window.addEventListener('resize', () => { fitSafeArea(); syncViewport(); });
 window.addEventListener('scroll', () => { if (!document.activeElement || !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) resetViewport(); });
 document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS-Pinch-Zoom aus
 
