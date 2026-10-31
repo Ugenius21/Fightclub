@@ -7,7 +7,7 @@
    ========================================================= */
 
 /** Wird im Profil angezeigt – so lässt sich prüfen, ob die neueste Version geladen ist. */
-const APP_VERSION = '11';
+const APP_VERSION = '12';
 
 const STORE_KEY = 'fightclub-data';
 const DRAFT_KEY = 'fightclub-draft';
@@ -37,6 +37,18 @@ function loadData() {
 let data = loadData();
 let draft = null;
 try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch (e) { draft = null; }
+
+/* Vorschlagswerte vom letzten Training sind grau – getrennt für Gewicht (gw)
+   und Wiederholungen (gr). Ein Satz gilt als eingetragen, sobald einer seiner
+   Werte selbst eingegeben wurde. */
+const isLogged = (s) => (s.w != null && !s.gw) || (s.r != null && !s.gr);
+/** Ältere Entwürfe (gemeinsames ghost-Flag, Erledigt-Haken) umrechnen. */
+if (draft && Array.isArray(draft.entries)) {
+  draft.entries.forEach((e) => (e.sets || []).forEach((s) => {
+    if ('ghost' in s) { const g = !!s.ghost && !s.done; if (g) { s.gw = true; s.gr = true; } delete s.ghost; }
+    delete s.done;
+  }));
+}
 
 function persist() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
@@ -205,6 +217,28 @@ $$('[data-ico]').forEach((el) => { el.innerHTML = ico(el.dataset.ico); });
 $('#backBtn').addEventListener('click', back);
 $$('.tabbar button').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
+/* =========================================================
+   DARSTELLUNG: System / Hell / Dunkel (pro Gerät gespeichert)
+   ========================================================= */
+
+const THEME_KEY = 'fightclub-theme';
+const darkQuery = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : { matches: false };
+function getTheme() {
+  try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : 'system'; } catch (e) { return 'system'; }
+}
+const isDark = () => { const t = getTheme(); return t === 'dark' || (t === 'system' && darkQuery.matches); };
+function applyTheme(t) {
+  try { if (t === 'system') localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, t); } catch (e) { /* privat */ }
+  if (t === 'system') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', t);
+  const meta = $('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', isDark() ? '#0b1016' : '#16222e');
+}
+const onSystemTheme = () => { applyTheme(getTheme()); if (current().view === 'profile') render(); };
+if (darkQuery.addEventListener) darkQuery.addEventListener('change', onSystemTheme);
+else if (darkQuery.addListener) darkQuery.addListener(onSystemTheme);
+applyTheme(getTheme());
+
 function setHeader(title, actionHtml = '') {
   $('#title').textContent = title;
   $('#backBtn').classList.toggle('off', nav.stack.length === 0);
@@ -218,6 +252,7 @@ function render() {
   document.body.classList.toggle('workout-mode', c.view === 'workout');
   document.body.classList.toggle('food-mode', c.view === 'food');
   if (Keypad.isOpen() && Keypad.owner() !== c.view) Keypad.close();
+  if (!Keypad.isOpen() && c.view !== 'workout') document.documentElement.style.setProperty('--kp-space', '0px');
   if (c.view !== 'workout') $('#timerHolder').innerHTML = '';
   const views = { plans: viewPlans, plan: viewPlan, workout: viewWorkout, calendar: viewCalendar, progress: viewProgress, food: viewNutrition, profile: viewProfile };
   (views[c.view] || viewPlans)(c);
@@ -315,7 +350,11 @@ const Keypad = (() => {
 
   const field = () => o.fields[idx];
   const setHeight = (h) => {
-    document.documentElement.style.setProperty('--kp-h', h + 'px');
+    const root = document.documentElement.style;
+    root.setProperty('--kp-h', h + 'px');
+    // Platz unter dem Inhalt wächst mit, schrumpft beim Schließen aber nicht sofort –
+    // sonst springt die Liste nach unten, wenn man ganz unten war (siehe render()).
+    if (h > (parseFloat(root.getPropertyValue('--kp-space')) || 0)) root.setProperty('--kp-space', h + 'px');
     document.body.classList.toggle('kp-open', h > 0);
   };
 
@@ -331,6 +370,8 @@ const Keypad = (() => {
     const txt = !fresh ? (buf || '0') : v == null ? '–' : fmtNum(v, f.decimals ?? 2);
     return `${esc(txt)}<small>${esc(f.unit || '')}</small>`;
   }
+  /** Vorschlagswert (grau), solange in diesem Feld noch nichts eingetippt wurde */
+  const isGhost = () => fresh && !!(field().isGhost && field().isGhost());
 
   function draw() {
     const f = field();
@@ -345,13 +386,13 @@ const Keypad = (() => {
       ${o.chips && many ? `<div class="kp-chips">${o.fields.map((x, i) => `<button data-chip="${i}" class="${i === idx ? 'on' : ''}">${esc(x.label)}<b>${x.get() == null ? '–' : fmtNum(x.get(), x.decimals ?? 1)}</b></button>`).join('')}</div>` : ''}
       <div class="kp-display">
         <button class="kp-step" data-k="minus">−${fmtNum(f.step, 2)}</button>
-        <div class="v" id="kpValue">${display()}</div>
+        <div class="v ${isGhost() ? 'ghost' : ''}" id="kpValue">${display()}</div>
         <button class="kp-step" data-k="plus">+${fmtNum(f.step, 2)}</button>
       </div>
       <div class="kp-grid">
         <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="back" class="muted-key" aria-label="Löschen">${ico('backspace')}</button>
         <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
-        ${many ? '<button data-k="next" class="next">Weiter</button>' : '<button data-k="clear" class="next muted-key" style="background:#e2e7ec;border-color:var(--line);color:var(--ink)">C</button>'}
+        ${many ? '<button data-k="next" class="next">Weiter</button>' : '<button data-k="clear" class="next muted-key">C</button>'}
         <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
         <button data-k="comma" ${f.int ? 'disabled style="opacity:.3"' : ''}>,</button><button data-k="0">0</button>
         <button data-k="ok" class="ok" style="grid-column: span 2">${esc(o.okLabel || 'Fertig')}</button>
@@ -365,7 +406,7 @@ const Keypad = (() => {
 
   function refreshValue() {
     const v = $('#kpValue', el);
-    if (v) v.innerHTML = display();
+    if (v) { v.innerHTML = display(); v.classList.toggle('ghost', isGhost()); }
     const chip = $(`[data-chip="${idx}"] b`, el);
     if (chip) { const x = field().get(); chip.textContent = x == null ? '–' : fmtNum(x, field().decimals ?? 1); }
   }
@@ -416,7 +457,9 @@ const Keypad = (() => {
   }
 
   function focus(i) {
-    idx = Math.max(0, Math.min(o.fields.length - 1, i));
+    const to = Math.max(0, Math.min(o.fields.length - 1, i));
+    if (idx >= 0 && o.onLeave && o.fields[idx]) o.onLeave(o.fields[idx], o.fields[to]);
+    idx = to;
     fresh = true;
     buf = '';
     draw();
@@ -426,11 +469,18 @@ const Keypad = (() => {
   function open(opts, start = 0) {
     if (!$('#sheet').hidden) closeSheet();
     o = opts;
+    idx = -1;
     el.hidden = false;
     focus(start);
   }
 
-  function done() { const cb = o && o.onDone; close(); if (cb) cb(); }
+  function done() {
+    if (!o) return;
+    if (o.onLeave && field()) o.onLeave(field(), null);
+    const cb = o.onDone;
+    close();
+    if (cb) cb();
+  }
 
   function close() {
     if (!o) return;
@@ -581,7 +631,7 @@ function planEditor(plan) {
 function viewPlan({ planId }) {
   const plan = planById(planId);
   if (!plan) { nav.stack.pop(); render(); return; }
-  setHeader(plan.name, `<button class="top-chip" id="editPlan" aria-label="Plan bearbeiten">${ico('edit')}</button>`);
+  setHeader(plan.name, `${plan.exercises.length > 1 ? `<button class="top-chip" id="reorder" aria-label="Reihenfolge ändern">${ico('reorder')}</button>` : ''}<button class="top-chip" id="editPlan" aria-label="Plan bearbeiten">${ico('edit')}</button>`);
   const v = $('#view');
 
   const exHtml = plan.exercises.map((ex, i) => {
@@ -600,8 +650,7 @@ function viewPlan({ planId }) {
       <div class="info"><div class="name">${esc(plan.name)}</div><span class="sticker">${plan.exercises.length} Übungen</span></div>
       <button class="start-btn" id="start">${ico('play')}Starten</button>
     </div>
-    <div class="row"><span class="label">Übungen</span><span class="grow"></span>
-      ${plan.exercises.length > 1 ? `<button class="ibtn" id="reorder" aria-label="Reihenfolge ändern">${ico('reorder')}</button>` : ''}</div>
+    <span class="label">Übungen</span>
     ${exHtml || '<div class="panel hint">Noch keine Übungen. Füge z. B. Bankdrücken oder Butterfly hinzu.</div>'}
     <button class="btn dashed" id="addEx">${ico('plus')}Übung hinzufügen</button>`;
 
@@ -693,7 +742,7 @@ function exerciseMenu(plan, idx) {
 /** Neue Übung im Training – vorbelegt mit den Werten vom letzten Mal. */
 function newEntry(ex, date) {
   const last = lastEntryFor(ex.name, date);
-  const sets = last ? last.entry.sets.map((s) => ({ w: s.w, r: s.r, ghost: true })) : [{ w: null, r: null }];
+  const sets = last ? last.entry.sets.map((s) => ({ w: s.w, r: s.r, gw: true, gr: true })) : [{ w: null, r: null }];
   return { exerciseId: ex.id, name: ex.name, sets, note: '' };
 }
 
@@ -709,7 +758,7 @@ function editWorkout(w) {
   if (draft && !confirm('Es läuft bereits ein Training. Verwerfen?')) return;
   draft = JSON.parse(JSON.stringify(w));
   draft.isNew = false;
-  draft.entries.forEach((e) => { e.note = e.note || ''; e.sets.forEach((s) => { s.done = true; }); });
+  draft.entries.forEach((e) => { e.note = e.note || ''; });
   saveDraft();
   go('workout');
 }
@@ -826,12 +875,12 @@ function workoutFields() {
     const base = { ei, si, entry: e };
     fields.push({
       ...base, key: `${ei}:${si}:w`, label: 'Gewicht', unit: 'kg', decimals: 2, step: 2.5,
-      get: () => s.w, set: (v) => { s.w = v; s.ghost = false; },
+      get: () => s.w, set: (v) => { s.w = v; delete s.gw; }, isGhost: () => !!s.gw,
       fallback: () => (si > 0 ? e.sets[si - 1].w : 0),
     });
     fields.push({
       ...base, key: `${ei}:${si}:r`, label: 'Wiederholungen', unit: 'Wdh.', int: true, decimals: 0, step: 1,
-      get: () => s.r, set: (v) => { s.r = v == null ? null : Math.round(v); s.ghost = false; },
+      get: () => s.r, set: (v) => { s.r = v == null ? null : Math.round(v); delete s.gr; }, isGhost: () => !!s.gr,
       fallback: () => (si > 0 ? e.sets[si - 1].r : 0),
     });
   }));
@@ -842,27 +891,50 @@ function valHtml(v, unit, decimals) {
   return v == null ? `<span class="u">${unit}</span>` : `${fmtNum(v, decimals)}<span class="u">${unit}</span>`;
 }
 
+/** Hält ein Element sichtbar zwischen Kopfbereich und Zahlenfeld. Muss gescrollt
+    werden, rückt die Zeile ins obere Drittel – so folgen die nächsten Sätze ohne
+    erneutes Scrollen. Kurze, gleichmäßige Bewegung statt Nachrutschen. */
+function keepVisible(el) {
+  const main = $('#view');
+  const kp = $('#keypad');
+  const r = el.getBoundingClientRect();
+  const m = main.getBoundingClientRect();
+  const top = m.top + 8;
+  const bottom = (kp.hidden ? m.bottom : Math.min(m.bottom, kp.getBoundingClientRect().top)) - 12;
+  let dy = 0;
+  if (r.bottom > bottom) dy = r.top - (top + (bottom - top) * 0.22);
+  else if (r.top < top) dy = r.top - top - 8;
+  if (Math.abs(dy) < 1) return;
+  const from = main.scrollTop;
+  const to = Math.max(0, Math.min(main.scrollHeight - main.clientHeight, from + dy));
+  const t0 = performance.now();
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / 170);
+    main.scrollTop = from + (to - from) * (1 - Math.pow(1 - k, 3));
+    if (k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* Satz, in dem zuletzt ein Wert eingetippt wurde – wird er verlassen, startet die Pause. */
+let woTouched = null;
+
 function viewWorkout() {
   if (!draft) { nav.stack.pop(); render(); return; }
   const color = planColor(draft.planId);
-  setHeader(planName(draft.planId), draft.entries.length > 1 ? `<button class="top-chip" id="woReorder" aria-label="Reihenfolge">${ico('reorder')}</button>` : '');
+  setHeader(planName(draft.planId), draft.entries.length > 1 ? `<button class="top-chip" id="woReorder" aria-label="Reihenfolge ändern">${ico('reorder')}</button>` : '');
   const v = $('#view');
 
-  const chips = draft.entries.map((e, ei) => {
-    const done = e.sets.filter((s) => s.done).length;
-    const cls = done && done >= e.sets.length ? 'full' : done ? 'part' : '';
-    return `<button class="ex-chip ${cls}" data-jump="${ei}">${esc(e.name)}<b>${done}/${e.sets.length}</b></button>`;
-  }).join('');
+  const chips = draft.entries.map((e, ei) => `<button class="ex-chip" data-jump="${ei}">${esc(e.name)}<b></b></button>`).join('');
 
   const cards = draft.entries.map((e, ei) => {
     const last = lastEntryFor(e.name, draft.date, draft.id);
     const perm = getNote(e.name);
     const rows = e.sets.map((s, si) => `
-      <div class="set-row ${s.done ? 'done' : ''}">
-        <button class="set-nr" data-setmenu="${ei}:${si}">${si + 1}</button>
-        <button class="val ${s.ghost ? 'ghost' : ''} ${s.w == null ? 'empty-val' : ''}" data-f="${ei}:${si}:w">${valHtml(s.w, 'kg', 2)}</button>
-        <button class="val ${s.ghost ? 'ghost' : ''} ${s.r == null ? 'empty-val' : ''}" data-f="${ei}:${si}:r">${valHtml(s.r, 'Wdh', 0)}</button>
-        <button class="chk" data-chk="${ei}:${si}" aria-label="Satz erledigt">${ico('check')}</button>
+      <div class="set-row ${isLogged(s) ? 'logged' : ''}" data-row="${ei}:${si}">
+        <button class="set-nr" data-setmenu="${ei}:${si}" aria-label="Satz ${si + 1}">${si + 1}</button>
+        <button class="val ${s.gw ? 'ghost' : ''} ${s.w == null ? 'empty-val' : ''}" data-f="${ei}:${si}:w">${valHtml(s.w, 'kg', 2)}</button>
+        <button class="val ${s.gr ? 'ghost' : ''} ${s.r == null ? 'empty-val' : ''}" data-f="${ei}:${si}:r">${valHtml(s.r, 'Wdh', 0)}</button>
       </div>`).join('');
     return `<section class="panel ex-card" id="ex-${ei}">
       <div class="ex-top">
@@ -870,21 +942,17 @@ function viewWorkout() {
         <h3 class="ex-name">${esc(e.name)}</h3>
         <div class="ex-actions">
           <button class="ibtn ${perm || e.note ? 'on' : ''}" data-note="${ei}" aria-label="Notiz">${ico('note')}</button>
-          <button class="ibtn" data-later="${ei}" aria-label="Später machen">${ico('skip')}</button>
           <button class="ibtn" data-exmenu="${ei}" aria-label="Mehr">${ico('more')}</button>
         </div>
       </div>
       ${perm ? `<div class="bubble"><small>Notiz</small>${esc(perm)}</div>` : ''}
       ${e.note ? `<div class="bubble today"><small>Heute</small>${esc(e.note)}</div>` : ''}
       <div class="last">${last ? `Letztes Mal (${fmtDate(last.workout.date, false)}): <b>${setsSummary(last.entry.sets)}</b>${last.entry.note ? ` · „${esc(last.entry.note)}“` : ''}` : 'Erstes Training dieser Übung – noch keine Vergleichswerte.'}</div>
-      <div class="sets-head"><span>Satz</span><span>Gewicht</span><span>Wdh.</span><span>Erl.</span></div>
+      <div class="sets-head"><span>Satz</span><span>Gewicht</span><span>Wdh.</span></div>
       ${rows}
       <button class="add-set" data-addset="${ei}">${ico('plus')}Satz</button>
     </section>`;
   }).join('');
-
-  const totalSets = draft.entries.reduce((a, e) => a + e.sets.length, 0);
-  const doneSets = draft.entries.reduce((a, e) => a + e.sets.filter((s) => s.done).length, 0);
 
   v.innerHTML = `
     <div class="wo-head">
@@ -892,15 +960,32 @@ function viewWorkout() {
     </div>
     ${draft.entries.length > 1 ? `<div class="ex-strip">${chips}</div>` : ''}
     ${cards || '<div class="panel hint">Dieser Plan hat noch keine Übungen.</div>'}
+    <p class="hint small center wo-legend">Graue Werte sind Vorschläge vom letzten Training. Gespeichert wird ein Satz, sobald du einen Wert einträgst.</p>
     <button class="btn dashed" id="wAddEx">${ico('plus')}Übung hinzufügen</button>
     <div style="height:18px"></div>
     ${draft.isNew ? '<button class="btn danger" id="wDiscard">Training verwerfen</button>' : '<button class="btn danger" id="wDelete">Training löschen</button>'}
     <div id="restHolder"></div>
     <div class="wo-footer">
-      <div class="clock">${doneSets}/${totalSets}<small>Sätze</small></div>
+      <div class="clock"><span id="woCount"></span><small>Sätze</small></div>
       <button class="btn primary" id="wSave">${draft.isNew ? 'Training beenden' : 'Speichern'}</button>
     </div>`;
 
+  /* Zähler und Übungs-Chips aktualisieren, ohne die Ansicht neu aufzubauen */
+  const updateCounts = () => {
+    let logged = 0, total = 0;
+    draft.entries.forEach((e, ei) => {
+      const n = e.sets.filter(isLogged).length;
+      logged += n; total += e.sets.length;
+      const chip = $(`[data-jump="${ei}"]`, v);
+      if (chip) {
+        $('b', chip).textContent = `${n}/${e.sets.length}`;
+        chip.classList.toggle('part', n > 0 && n < e.sets.length);
+        chip.classList.toggle('full', n > 0 && n >= e.sets.length);
+      }
+    });
+    $('#woCount', v).textContent = `${logged}/${total}`;
+  };
+  updateCounts();
   drawRest();
   drawTimer();
 
@@ -910,24 +995,20 @@ function viewWorkout() {
     const el = key && $(`[data-f="${key}"]`, v);
     if (el) {
       el.classList.add('active');
-      // Feld oberhalb des Zahlenfelds sichtbar halten
-      requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect();
-        const kp = $('#keypad').offsetHeight || 0;
-        const bottomLimit = window.innerHeight - kp - 20;
-        if (r.bottom > bottomLimit) $('#view').scrollBy({ top: r.bottom - bottomLimit + 40, behavior: 'smooth' });
-        const topLimit = $('.topbar').offsetHeight + (($('#woTimer') || {}).offsetHeight || 0) + 12;
-        if (r.bottom <= bottomLimit && r.top < topLimit) $('#view').scrollBy({ top: r.top - topLimit - 10, behavior: 'smooth' });
-      });
+      requestAnimationFrame(() => keepVisible(el.closest('.set-row') || el));
     }
   };
   const refreshField = (f) => {
     const s = f.entry.sets[f.si];
+    const isW = f.key.endsWith(':w');
     const btn = $(`[data-f="${f.key}"]`, v);
     if (!btn) return;
-    btn.innerHTML = f.key.endsWith(':w') ? valHtml(s.w, 'kg', 2) : valHtml(s.r, 'Wdh', 0);
-    $$(`[data-f^="${f.ei}:${f.si}:"]`, v).forEach((b) => b.classList.toggle('ghost', !!s.ghost));
+    btn.innerHTML = isW ? valHtml(s.w, 'kg', 2) : valHtml(s.r, 'Wdh', 0);
+    btn.classList.toggle('ghost', !!(isW ? s.gw : s.gr));
     btn.classList.toggle('empty-val', f.get() == null);
+    const row = btn.closest('.set-row');
+    if (row) row.classList.toggle('logged', isLogged(s));
+    updateCounts();
   };
 
   const openKeypad = (key) => {
@@ -940,7 +1021,14 @@ function viewWorkout() {
       title: (f) => `${esc(f.entry.name)} · Satz ${f.si + 1} · <b>${f.label}</b>`,
       okLabel: 'Fertig',
       onFocus: (f) => highlight(f.key),
-      onChange: (f) => { saveDraft(); refreshField(f); },
+      onChange: (f) => { woTouched = `${f.ei}:${f.si}`; saveDraft(); refreshField(f); },
+      // Satz fertig eingetragen (zum nächsten Satz oder „Fertig“) → Pause starten
+      onLeave: (f, next) => {
+        if (woTouched !== `${f.ei}:${f.si}`) return;
+        if (next && next.ei === f.ei && next.si === f.si) return;
+        woTouched = null;
+        if (isLogged(f.entry.sets[f.si])) startRest();
+      },
       onClose: () => highlight(null),
     }, Math.max(0, start));
   };
@@ -952,27 +1040,14 @@ function viewWorkout() {
 
   $$('[data-f]', v).forEach((b) => b.onclick = () => openKeypad(b.dataset.f));
 
-  $$('[data-chk]', v).forEach((b) => b.onclick = () => {
-    unlockAudio();
-    const [ei, si] = b.dataset.chk.split(':').map(Number);
-    const s = draft.entries[ei].sets[si];
-    s.done = !s.done;
-    if (s.done) {
-      s.ghost = false;
-      startRest();
-    }
-    saveDraft();
-    render();
-    if (s.done) { const row = $(`[data-chk="${ei}:${si}"]`); if (row) row.closest('.set-row').classList.add('pulse'); }
-  });
-
   $$('[data-jump]', v).forEach((b) => b.onclick = () => $(`#ex-${b.dataset.jump}`).scrollIntoView({ behavior: 'smooth', block: 'start' }));
 
   $$('[data-addset]', v).forEach((b) => b.onclick = () => {
     const ei = Number(b.dataset.addset);
     const sets = draft.entries[ei].sets;
     const prev = sets[sets.length - 1];
-    sets.push(prev ? { w: prev.w, r: prev.r } : { w: null, r: null });
+    // Neuer Satz übernimmt die Werte des vorigen als graue Vorschläge
+    sets.push(prev ? { w: prev.w, r: prev.r, ...(prev.w != null ? { gw: true } : {}), ...(prev.r != null ? { gr: true } : {}) } : { w: null, r: null });
     saveDraft();
     Keypad.close();
     render();
@@ -981,29 +1056,20 @@ function viewWorkout() {
   $$('[data-setmenu]', v).forEach((b) => b.onclick = () => {
     const [ei, si] = b.dataset.setmenu.split(':').map(Number);
     const e = draft.entries[ei];
+    const s = e.sets[si];
+    const ghosts = (s.gw && s.w != null) || (s.gr && s.r != null);
     openSheet(`
       <h2>${esc(e.name)} · Satz ${si + 1}</h2>
-      <button class="btn" id="setDup">Satz duplizieren</button>
-      <button class="btn" id="setDel" style="color:var(--red)">Satz löschen</button>
+      ${ghosts ? `<button class="btn" id="setTake">${ico('check')}Vorschlag übernehmen (${s.w != null ? fmtNum(s.w, 2) + ' kg' : '–'} × ${s.r ?? '–'})</button>` : ''}
+      <button class="btn" id="setDup">${ico('dup')}Satz duplizieren</button>
+      <button class="btn" id="setDel" style="color:var(--red)">${ico('trash')}Satz löschen</button>
       <button class="btn danger" id="setCancel" style="color:var(--muted)">Abbrechen</button>
     `, () => {
       $('#setCancel').onclick = closeSheet;
-      $('#setDup').onclick = () => { const s = e.sets[si]; e.sets.splice(si + 1, 0, { w: s.w, r: s.r }); saveDraft(); closeSheet(); render(); };
+      if ($('#setTake')) $('#setTake').onclick = () => { delete s.gw; delete s.gr; saveDraft(); closeSheet(); render(); startRest(); };
+      $('#setDup').onclick = () => { e.sets.splice(si + 1, 0, { w: s.w, r: s.r }); saveDraft(); closeSheet(); render(); };
       $('#setDel').onclick = () => { e.sets.splice(si, 1); saveDraft(); closeSheet(); render(); };
     });
-  });
-
-  $$('[data-later]', v).forEach((b) => b.onclick = () => {
-    const ei = Number(b.dataset.later);
-    if (ei === draft.entries.length - 1) { toast('Ist schon die letzte Übung'); return; }
-    const [e] = draft.entries.splice(ei, 1);
-    draft.entries.push(e);
-    saveDraft();
-    Keypad.close();
-    render();
-    toast(`${e.name} ans Ende verschoben`);
-    const next = $(`#ex-${ei}`);
-    if (next) next.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   $$('[data-note]', v).forEach((b) => b.onclick = () => notesSheet(draft.entries[Number(b.dataset.note)]));
@@ -1013,16 +1079,11 @@ function viewWorkout() {
     const e = draft.entries[ei];
     openSheet(`
       <h2>${esc(e.name)}</h2>
-      <button class="btn" id="mUp" ${ei === 0 ? 'disabled' : ''}>${ico('up')}Nach vorne holen</button>
-      <button class="btn" id="mLater">${ico('skip')}Später machen (ans Ende)</button>
-      <button class="btn" id="mOrder">${ico('reorder')}Reihenfolge ändern</button>
       <button class="btn" id="mNote">${ico('note')}Notizen</button>
       <button class="btn" id="mProg">${ico('progress')}Fortschritt</button>
       <button class="btn danger" id="mDel">Aus diesem Training entfernen</button>
+      <p class="hint small center">Die Reihenfolge änderst du oben rechts.</p>
     `, () => {
-      $('#mUp').onclick = () => { const [x] = draft.entries.splice(ei, 1); draft.entries.unshift(x); saveDraft(); closeSheet(); render(); $('#view').scrollTo({ top: 0, behavior: 'smooth' }); };
-      $('#mLater').onclick = () => { closeSheet(); $(`[data-later="${ei}"]`).click(); };
-      $('#mOrder').onclick = () => { closeSheet(); workoutReorder(); };
       $('#mNote').onclick = () => notesSheet(e);
       $('#mProg').onclick = () => { closeSheet(); progressState.name = e.name; nav.tab = 'progress'; nav.stack = []; render(); };
       $('#mDel').onclick = () => {
@@ -1032,7 +1093,7 @@ function viewWorkout() {
     });
   });
 
-  if ($('#woReorder')) $('#woReorder').onclick = workoutReorder;
+  if ($('#woReorder')) $('#woReorder').onclick = () => { Keypad.close(); workoutReorder(); };
 
   $('#wDate').onchange = (e) => {
     if (!e.target.value) return;
@@ -1051,7 +1112,7 @@ function viewWorkout() {
     saveDraft(); render();
   });
 
-  $('#wSave').onclick = finishWorkout;
+  $('#wSave').onclick = () => { Keypad.close(); finishWorkout(); };
   if ($('#wDiscard')) $('#wDiscard').onclick = () => {
     if (!confirm('Training verwerfen? Die Eingaben gehen verloren.')) return;
     draft = null; saveDraft(); stopRest(); Keypad.close(); back();
@@ -1076,7 +1137,7 @@ function workoutReorder() {
       }
     }
     render();
-  }, `<label class="row" style="margin-top:6px"><input type="checkbox" id="applyPlan" style="width:22px;height:22px;accent-color:#e63027"> <span>Auch im Plan dauerhaft so speichern</span></label>`);
+  }, `<label class="row" style="margin-top:6px"><input type="checkbox" id="applyPlan" style="width:22px;height:22px;accent-color:var(--accent)"> <span>Auch im Plan dauerhaft so speichern</span></label>`);
 }
 
 function notesSheet(entry) {
@@ -1097,11 +1158,28 @@ function notesSheet(entry) {
   });
 }
 
-function finishWorkout() {
+/** mode: undefined (ggf. nachfragen) · 'logged' (nur eingetragene Sätze) · 'all' (Vorschläge mitspeichern) */
+function finishWorkout(mode) {
+  const pending = draft.entries.reduce((a, e) => a + e.sets.filter((s) => !isLogged(s) && s.r != null && s.r > 0).length, 0);
+  if (!mode && pending) {
+    openSheet(`
+      <h2>${ico('info')}${pending === 1 ? '1 Satz' : `${pending} Sätze`} nicht eingetragen</h2>
+      <p class="hint" style="margin-top:0">${pending === 1 ? 'Dieser Satz zeigt' : 'Diese Sätze zeigen'} nur die grauen Vorschlagswerte vom letzten Training.</p>
+      <button class="btn primary" id="finLogged">Nur eingetragene Sätze speichern</button>
+      <button class="btn" id="finAll">Vorschlagswerte mitspeichern</button>
+      <button class="btn danger" id="finBack" style="color:var(--muted)">Weiter trainieren</button>
+    `, () => {
+      $('#finLogged').onclick = () => { closeSheet(); finishWorkout('logged'); };
+      $('#finAll').onclick = () => { closeSheet(); finishWorkout('all'); };
+      $('#finBack').onclick = closeSheet;
+    });
+    return;
+  }
+  const keep = (s) => mode === 'all' || isLogged(s);
   const entries = draft.entries
     .map((e) => ({
       exerciseId: e.exerciseId, name: e.name,
-      sets: e.sets.filter((s) => s.r != null && s.r > 0).map((s) => ({ w: s.w ?? 0, r: s.r })),
+      sets: e.sets.filter((s) => keep(s) && s.r != null && s.r > 0).map((s) => ({ w: s.w ?? 0, r: s.r })),
       ...(e.note ? { note: e.note } : {}),
     }))
     .filter((e) => e.sets.length);
@@ -1290,12 +1368,12 @@ function lineChart(el, points, color, unit) {
   if (trend) {
     const ty = (t) => trend.intercept + trend.slope * (t / 86400000);
     const clamp = (v) => Math.min(H - B, Math.max(T, py(v)));
-    trendLine = `<line x1="${px(x0)}" y1="${clamp(ty(x0))}" x2="${px(x1)}" y2="${clamp(ty(x1))}" stroke="var(--ink-2)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+    trendLine = `<line x1="${px(x0)}" y1="${clamp(ty(x0))}" x2="${px(x1)}" y2="${clamp(ty(x1))}" style="stroke:var(--ink-2)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
   }
 
   el.innerHTML = `
     <svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img">
-      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".16"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:${color};stop-opacity:.16"/><stop offset="1" style="stop-color:${color};stop-opacity:0"/></linearGradient></defs>
       <text x="${L - 6}" y="${T - 10}" text-anchor="end">[${unit}]</text>
       ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 3.5}" text-anchor="end">${fmtNum(t)}</text>`).join('')}
       <line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/>
@@ -1303,10 +1381,10 @@ function lineChart(el, points, color, unit) {
       ${labelIdx.map((i) => `<line class="axis" x1="${coords[i][0]}" x2="${coords[i][0]}" y1="${H - B}" y2="${H - B + 4}"/><text x="${coords[i][0]}" y="${H - 9}" text-anchor="${anchor(i)}">${fmtDate(points[i].date, false)}</text>`).join('')}
       <path d="${area}" fill="url(#${gid})"/>
       ${trendLine}
-      <path d="${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-      ${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${points.length > 40 ? 1.8 : 3}" fill="#fff" stroke="${color}" stroke-width="1.6"/>`).join('')}
-      <line class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="2 3" visibility="hidden"/>
-      <circle class="hl" r="5" fill="${color}" stroke="#fff" stroke-width="2" visibility="hidden"/>
+      <path d="${path}" fill="none" style="stroke:${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${coords.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${points.length > 40 ? 1.8 : 3}" class="pt" style="stroke:${color}" stroke-width="1.6"/>`).join('')}
+      <line class="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" style="stroke:var(--ink-2)" stroke-width="1" stroke-dasharray="2 3" visibility="hidden"/>
+      <circle class="hl" r="5" style="fill:${color};stroke:var(--surface)" stroke-width="2" visibility="hidden"/>
     </svg>
     <div class="chart-meta">n = ${points.length}${trend ? ` · Trend (lin. Regression): ${fmtSigned(trend.slope * 7, 2)} ${unit}/Woche · R² = ${fmtNum(trend.r2, 2)}` : ''}</div>
     <div class="chart-tip hint">Tippe ins Diagramm für Details</div>`;
@@ -1331,12 +1409,12 @@ function barChart(el, bars, goal, unit) {
     <svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img">
       <text x="${L - 6}" y="${T - 10}" text-anchor="end">[${unit}]</text>
       ${ticks.map((t) => `<line class="grid" x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/><text x="${L - 6}" y="${py(t) + 3.5}" text-anchor="end">${fmtNum(t, 0)}</text>`).join('')}
-      ${bars.map((b, i) => b.y ? `<rect x="${L + bw * i + bw * .18}" y="${py(b.y)}" width="${bw * .64}" height="${H - B - py(b.y)}" rx="1.5" fill="${goal && b.y > goal * 1.05 ? 'var(--red)' : 'var(--teal)'}" opacity=".85"/>` : '').join('')}
-      ${goal ? `<line x1="${L}" x2="${W - R}" y1="${py(goal)}" y2="${py(goal)}" stroke="var(--ink-2)" stroke-width="1.2" stroke-dasharray="5 4"/><text x="${W - R}" y="${py(goal) - 5}" text-anchor="end" style="fill:var(--ink-2)">Ziel ${fmtNum(goal, 0)}</text>` : ''}
+      ${bars.map((b, i) => b.y ? `<rect x="${L + bw * i + bw * .18}" y="${py(b.y)}" width="${bw * .64}" height="${H - B - py(b.y)}" rx="1.5" style="fill:${goal && b.y > goal * 1.05 ? 'var(--red)' : 'var(--teal)'}" opacity=".85"/>` : '').join('')}
+      ${goal ? `<line x1="${L}" x2="${W - R}" y1="${py(goal)}" y2="${py(goal)}" style="stroke:var(--ink-2)" stroke-width="1.2" stroke-dasharray="5 4"/><text x="${W - R}" y="${py(goal) - 5}" text-anchor="end" style="fill:var(--ink-2)">Ziel ${fmtNum(goal, 0)}</text>` : ''}
       <line class="axis" x1="${L}" x2="${L}" y1="${T}" y2="${H - B}"/>
       <line class="axis" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>
       ${bars.map((b, i) => (bars.length - 1 - i) % step ? '' : `<text x="${L + bw * i + bw / 2}" y="${H - 9}" text-anchor="middle">${fmtDate(b.date, false)}</text>`).join('')}
-      <circle class="hl" r="4" fill="var(--ink)" stroke="#fff" stroke-width="2" visibility="hidden"/>
+      <circle class="hl" r="4" style="fill:var(--ink);stroke:var(--surface)" stroke-width="2" visibility="hidden"/>
     </svg>
     <div class="chart-tip hint">Tippe auf einen Balken für Details</div>`;
   bindChartTip(el, coords, W, (i) => `<b>${fmtNum(bars[i].y, 0)} ${unit}</b> · ${fmtDateLong(bars[i].date)}`);
@@ -1493,7 +1571,7 @@ function viewWeight(v) {
       ${[...all].reverse().slice(0, 60).map((w) => `<button class="row-item" data-wid="${w.id}"><div class="grow t">${fmtDateLong(w.date)}</div><b class="num" style="font-size:16px">${fmtNum(w.kg)} kg</b><span class="chev">${ico('chevr')}</span></button>`).join('')}
     ` : `<div class="empty"><div class="big">${ico('scale')}</div><p>Trag dein Gewicht regelmäßig ein, um den Verlauf zu sehen.</p></div>`}`;
 
-  if (all.length) lineChart($('#wChart'), shown.map((w) => ({ date: w.date, y: w.kg })), '#1E88E5', 'kg');
+  if (all.length) lineChart($('#wChart'), shown.map((w) => ({ date: w.date, y: w.kg })), 'var(--accent)', 'kg');
   $('#wAdd').onclick = () => weightEntry();
   $$('[data-range]', v).forEach((b) => b.onclick = () => { bodyState.range = Number(b.dataset.range); render(); });
   $$('[data-wid]', v).forEach((b) => b.onclick = () => {
@@ -1518,7 +1596,7 @@ function syncStatusHtml() {
 }
 
 function viewProfile() {
-  setHeader('Profil');
+  setHeader('Profil', `<button class="top-chip" id="themeBtn" aria-label="${isDark() ? 'Helles Design' : 'Dunkles Design'}">${ico(isDark() ? 'sun' : 'moon')}</button>`);
   const v = $('#view');
   const u = Sync.user();
   const st = data.settings;
@@ -1558,12 +1636,15 @@ function viewProfile() {
 
     <span class="label">Einstellungen</span>
     <div class="panel">
-      <div class="lbl" style="margin-top:0">Pause zwischen den Sätzen</div>
+      <div class="lbl" style="margin-top:0">Darstellung</div>
+      <div class="seg">${[['system', 'Wie iPhone'], ['light', 'Hell'], ['dark', 'Dunkel']].map(([k, l]) => `<button data-theme-set="${k}" class="${getTheme() === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <div class="lbl">Pause zwischen den Sätzen</div>
       <div class="seg" style="margin-bottom:6px">${[60, 90, 120, 180].map((s) => `<button data-rest-sec="${s}" class="${st.restSec === s ? 'on' : ''}">${fmtTime(s)}</button>`).join('')}</div>
-      <label class="row" style="margin:12px 0"><input type="checkbox" id="soundChk" ${st.sound ? 'checked' : ''} style="width:22px;height:22px;accent-color:#e63027"><span>Ton am Ende der Pause</span></label>
+      <label class="row" style="margin:12px 0"><input type="checkbox" id="soundChk" ${st.sound ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--accent)"><span>Ton am Ende der Pause</span></label>
       <button class="btn small" id="goalsBtn">${ico('target')}Ernährungsziele: <span class="num">${fmtNum(st.kcalGoal, 0)} kcal</span></button>
     </div>
-    <p class="hint center small">Fightclub · Version ${APP_VERSION} · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>`;
+    <p class="hint center small">Fightclub · Version ${APP_VERSION} · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>
+    <p class="hint center small num" id="screenInfo">${screenInfo()}</p>`;
 
   if ($('#loginForm')) {
     const msg = (t) => { $('#authMsg').textContent = t; };
@@ -1606,6 +1687,14 @@ function viewProfile() {
   $$('[data-rest-sec]', v).forEach((b) => b.onclick = () => { st.restSec = Number(b.dataset.restSec); touchSettings(); save(); render(); });
   $('#soundChk').onchange = (e) => { st.sound = e.target.checked; touchSettings(); save(); if (st.sound) { unlockAudio(); beep(); } };
   $('#goalsBtn').onclick = goalsSheet;
+  $('#themeBtn').onclick = () => { applyTheme(isDark() ? 'light' : 'dark'); render(); };
+  $$('[data-theme-set]', v).forEach((b) => b.onclick = () => { applyTheme(b.dataset.themeSet); render(); });
+}
+
+/** Messwerte zur Anzeige – hilft, falls die App auf einem Gerät nicht bis zum Rand reicht. */
+function screenInfo() {
+  const standalone = document.documentElement.classList.contains('standalone');
+  return `Anzeige ${window.innerWidth} × ${window.innerHeight} · Bildschirm ${screen.width} × ${screen.height}${standalone ? ' · Home-Bildschirm-App' : ''}`;
 }
 
 Sync.onChange(() => {
@@ -1742,8 +1831,9 @@ function syncViewport() {
   const root = document.documentElement.style;
   if (!vv) return;
   const keyboard = window.innerHeight - vv.height > 120;
-  root.setProperty('--vv-h', (keyboard ? vv.height : window.innerHeight) + 'px');
-  root.setProperty('--vv-top', (keyboard ? vv.offsetTop : 0) + 'px');
+  // Ohne Tastatur ist das Gerüst per CSS am ganzen Bildschirm verankert (top/bottom 0).
+  root.setProperty('--vv-h', vv.height + 'px');
+  root.setProperty('--vv-top', vv.offsetTop + 'px');
   document.body.classList.toggle('kb-open', keyboard);
   if (!keyboard) setTimeout(resetViewport, 60);
 }
@@ -1753,27 +1843,12 @@ if (window.visualViewport) {
 }
 window.addEventListener('orientationchange', () => setTimeout(syncViewport, 300));
 
-/* Home-Bildschirm-App auf dem iPhone: Reicht die App nicht bis zum unteren
-   Bildschirmrand (iOS lässt den Bereich am Home-Balken dann frei), entfällt
-   der zusätzliche Abstand für den Home-Balken – sonst wäre er doppelt. */
-function fitSafeArea() {
-  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
-  const probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
-  document.body.appendChild(probe);
-  const safeTop = parseFloat(getComputedStyle(probe).paddingTop) || 0;
-  const safeBottom = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
-  probe.remove();
-  const portrait = window.innerHeight >= window.innerWidth;
-  const screenH = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-  const gap = standalone && safeTop > 0 ? screenH - window.innerHeight : 0;
-  const root = document.documentElement.style;
-  if (gap >= 10 && safeBottom > 0) root.setProperty('--safe-bottom', '0px');
-  else root.removeProperty('--safe-bottom');
-}
-fitSafeArea();
 syncViewport();
-window.addEventListener('resize', () => { fitSafeArea(); syncViewport(); });
+window.addEventListener('resize', () => {
+  syncViewport();
+  const info = $('#screenInfo');
+  if (info) info.textContent = screenInfo();
+});
 window.addEventListener('scroll', () => { if (!document.activeElement || !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) resetViewport(); });
 document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS-Pinch-Zoom aus
 

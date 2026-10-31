@@ -14,6 +14,14 @@
   <link rel="apple-touch-icon" href="icon-soap-180.png">
   <link rel="icon" href="icon-soap-192.png">
   <link rel="stylesheet" href="style.css">
+  <script>
+    // Vor dem ersten Zeichnen: gewähltes Farbschema und Home-Bildschirm-Modus setzen
+    (function () {
+      var root = document.documentElement;
+      try { var t = localStorage.getItem('fightclub-theme'); if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t); } catch (e) {}
+      if (navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) root.classList.add('standalone');
+    })();
+  </script>
 </head>
 <body>
   <header class="topbar">

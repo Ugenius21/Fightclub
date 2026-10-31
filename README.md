@@ -2,16 +2,16 @@
 
 Fightclub ist eine Fitness-App mit sachlichem, datenorientiertem Design. Damit verfolgst du deinen Fortschritt im Krafttraining, dein Körpergewicht und deine Ernährung.
 
-**Design:** IBM Plex Sans für Text, IBM Plex Mono für Messwerte, schlichte Linien-Symbole statt Emojis, Diagramme mit Achsen, Einheiten, linearer Trendlinie und Bestimmtheitsmaß (R²). Das App-Icon (die Seife) bleibt unverändert.
+**Design:** IBM Plex Sans für Text, IBM Plex Mono für Messwerte, schlichte Linien-Symbole statt Emojis, Diagramme mit Achsen, Einheiten, linearer Trendlinie und Bestimmtheitsmaß (R²). Das App-Icon (die Seife) bleibt unverändert. **Dunkelmodus:** über den Mond/Sonne-Knopf oben rechts im Profil oder unter *Profil → Einstellungen → Darstellung* (Wie iPhone / Hell / Dunkel).
 
 ## Funktionen
 
 - **Trainingspläne** wie „Push“, „Pull“ oder „Beine“, jeder mit eigener Farbe. Mit „Starten“ geht das Training direkt los.
-- **Übungen** fügst du mit einem Tipp hinzu, auch mehrere hintereinander. Die Reihenfolge änderst du per Ziehen am Griff (zwei Striche rechts).
-- **Training erfassen**: Satz · Gewicht (kg) · Wiederholungen. Eingegeben wird über ein eigenes großes Zahlenfeld mit ±2,5-kg- und ±1-Wdh.-Tasten und „Weiter“ zum nächsten Feld. Die iOS-Tastatur mit dem blauen Markierungskasten erscheint dabei nicht. „+ Satz“ legt einen weiteren Satz mit den gleichen Werten an. Mit dem Haken rechts hakst du einen Satz ab, dann startet automatisch der Pausen-Timer. Ist dabei das Zahlenfeld offen, läuft die Pause klein in dessen Kopfzeile mit und verdeckt kein Eingabefeld.
+- **Übungen** fügst du mit einem Tipp hinzu, auch mehrere hintereinander. Die Reihenfolge änderst du über das Pfeil-Symbol **oben rechts** (im Plan und im laufenden Training) per Ziehen am Griff.
+- **Training erfassen**: Satz · Gewicht (kg) · Wiederholungen. Eingegeben wird über ein eigenes großes Zahlenfeld mit ±2,5-kg- und ±1-Wdh.-Tasten und „Weiter“ zum nächsten Feld. Die iOS-Tastatur mit dem blauen Markierungskasten erscheint dabei nicht. „+ Satz“ legt einen weiteren Satz an (die Werte des vorigen Satzes stehen grau als Vorschlag drin). Einen Erledigt-Haken gibt es nicht: Ein Satz gilt als eingetragen, sobald du einen Wert eintippst – die Satznummer wird dann grün. Wechselst du danach zum nächsten Satz (oder tippst auf „Fertig“), startet automatisch der Pausen-Timer; er läuft bei offenem Zahlenfeld klein in dessen Kopfzeile mit. Beim Eintippen bleibt die Liste ruhig: Sie rückt nur dann (kurz) nach, wenn das Feld sonst vom Zahlenfeld verdeckt würde.
 - **Trainings-Timer**: startet automatisch mit „Starten“. Er ist als große Stoppuhr oben immer sichtbar, lässt sich pausieren und läuft auch weiter, wenn du die App zwischendurch schließt. Die Trainingszeit (ohne Pausen) wird gespeichert und in der Trainingsübersicht, im Kalender und im Excel-Export angezeigt. Bei nachgetragenen Trainings startest du den Timer bei Bedarf selbst.
-- **Werte vom letzten Training** sind vorausgefüllt (grau, bis du sie änderst oder abhakst). Darunter steht, was du letztes Mal geschafft hast.
-- **Maschine besetzt?** Das Symbol „Später“ (Dreieck mit Strich) schiebt die Übung ans Ende. Über das Pfeil-Symbol oben rechts sortierst du das ganze Training um, auf Wunsch auch dauerhaft im Plan.
+- **Werte vom letzten Training** sind grau vorausgefüllt – getrennt für Gewicht und Wiederholungen: Trägst du nur das Gewicht ein, bleiben die Wiederholungen vom letzten Mal grau stehen und werden so gespeichert. Hast du einen Satz genau wie beim letzten Mal geschafft, tippe auf die Satznummer → *Vorschlag übernehmen*. Sätze, in denen gar nichts eingetragen wurde, fragt die App beim Beenden nach (nur eingetragene speichern oder Vorschläge mitspeichern).
+- **Maschine besetzt?** Über das Pfeil-Symbol oben rechts sortierst du das Training um, auf Wunsch auch dauerhaft im Plan.
 - **Notizen pro Übung**: eine dauerhafte Notiz (z. B. Sitzposition, Einstellung) und eine Notiz für heute (z. B. Muskelgefühl). Die Notiz von heute siehst du beim nächsten Mal unter „Letztes Mal“.
 - **Trainingsübersicht** nach dem Training mit Sätzen, Volumen, Dauer und **neuen Bestwerten** (inkl. Steigerung in %).
 - **Fortschritt**: Diagramm pro Übung (max. Gewicht, geschätztes 1RM oder Volumen) mit Start, Aktuell, Bestwert und Steigerung, dazu Trendlinie (lineare Regression) mit Steigung pro Woche und R².
@@ -41,6 +41,8 @@ Im Ordner `docs/` liegt Fightclub als **Web-App**. Du öffnest sie einmal in Saf
 3. Fightclub über das neue Icon starten. Fertig.
 
 Updates kommen automatisch: Nach einer Änderung im Repo lädt die App beim nächsten Öffnen die neue Version.
+
+*Untere Leiste nicht ganz unten?* iOS 26 macht Home-Bildschirm-Apps um die Höhe der Statusleiste zu kurz; Fightclub gleicht das aus (ab Version 12). Ganz unten im Profil stehen die Anzeige-Maße – auf einem iPhone 15 Pro sollte dort „Anzeige 393 × 852 · Bildschirm 393 × 852 · Home-Bildschirm-App“ stehen.
 
 ## Login per E-Mail & Synchronisierung (einmalig einrichten)
 
