@@ -2,13 +2,15 @@
 
 Fightclub ist eine Fitness-App mit sachlichem, datenorientiertem Design. Damit verfolgst du deinen Fortschritt im Krafttraining, dein Körpergewicht und deine Ernährung.
 
-**Design:** IBM Plex Sans für Text, IBM Plex Mono für Messwerte, schlichte Linien-Symbole statt Emojis, Diagramme mit Achsen, Einheiten, linearer Trendlinie und Bestimmtheitsmaß (R²). Das App-Icon (die Seife) bleibt unverändert. **Dunkelmodus:** über den Mond/Sonne-Knopf oben rechts im Profil oder unter *Profil → Einstellungen → Darstellung* (Wie iPhone / Hell / Dunkel).
+**Design:** IBM Plex Sans für Text, IBM Plex Mono für Messwerte, schlichte Linien-Symbole statt Emojis, Diagramme mit Achsen, Einheiten, linearer Trendlinie und Bestimmtheitsmaß (R²). Das App-Icon (die Seife) bleibt unverändert. **Dunkelmodus:** über den Mond/Sonne-Knopf oben rechts im Profil oder unter *Profil → Darstellung* (Wie iPhone / Hell / Dunkel).
+
+**Bedienung (ab Version 13):** Alles Antippbare ist mindestens 44 pt groß und reagiert sofort sichtbar. Kopfzeile und untere Leiste stehen fest, nur der Inhalt scrollt. Texte gibst du auf eigenen Eingabeseiten ein, bei denen das Feld über der Tastatur steht; Zahlen über das eigene Zahlenfeld. Ansichten, Dialoge und das Zahlenfeld gleiten weich ein und aus (bei „Bewegung reduzieren“ in den iPhone-Einstellungen ohne Animation).
 
 ## Funktionen
 
 - **Trainingspläne** wie „Push“, „Pull“ oder „Beine“, jeder mit eigener Farbe. Mit „Starten“ geht das Training direkt los.
 - **Übungen** fügst du mit einem Tipp hinzu, auch mehrere hintereinander. Die Reihenfolge änderst du über das Pfeil-Symbol **oben rechts** (im Plan und im laufenden Training) per Ziehen am Griff.
-- **Training erfassen**: Satz · Gewicht (kg) · Wiederholungen. Eingegeben wird über ein eigenes großes Zahlenfeld mit ±2,5-kg- und ±1-Wdh.-Tasten und „Weiter“ zum nächsten Feld. Die iOS-Tastatur mit dem blauen Markierungskasten erscheint dabei nicht. „+ Satz“ legt einen weiteren Satz an (die Werte des vorigen Satzes stehen grau als Vorschlag drin). Einen Erledigt-Haken gibt es nicht: Ein Satz gilt als eingetragen, sobald du einen Wert eintippst – die Satznummer wird dann grün. Wechselst du danach zum nächsten Satz (oder tippst auf „Fertig“), startet automatisch der Pausen-Timer; er läuft bei offenem Zahlenfeld klein in dessen Kopfzeile mit. Beim Eintippen bleibt die Liste ruhig: Sie rückt nur dann (kurz) nach, wenn das Feld sonst vom Zahlenfeld verdeckt würde.
+- **Training erfassen**: Satz · Gewicht (kg) · Wiederholungen. Eingegeben wird über ein eigenes großes Zahlenfeld: Gewicht und Wiederholungen des Satzes stehen als zwei Kästchen nebeneinander, dazu ±2,5-kg- und ±1-Wdh.-Tasten und „Weiter“ zum nächsten Feld. Die Tasten reagieren schon beim Antippen (auch bei schnellem Tippen mit zwei Daumen geht nichts verloren); ± und Löschen wiederholen sich, solange du sie gedrückt hältst. Die iOS-Tastatur erscheint dabei nicht. „+ Satz“ legt einen weiteren Satz an (die Werte des vorigen Satzes stehen grau als Vorschlag drin) und öffnet gleich das Zahlenfeld. Einen Erledigt-Haken gibt es nicht: Ein Satz gilt als eingetragen, sobald du einen Wert eintippst – die Satznummer wird dann grün. Beim Eintippen bleibt die Liste ruhig: Sie rückt nur dann (weich) nach, wenn das Feld sonst vom Zahlenfeld verdeckt würde. Eine Pausen-Anzeige zwischen den Sätzen gibt es seit Version 13 nicht mehr.
 - **Trainings-Timer**: startet automatisch mit „Starten“. Er ist als große Stoppuhr oben immer sichtbar, lässt sich pausieren und läuft auch weiter, wenn du die App zwischendurch schließt. Die Trainingszeit (ohne Pausen) wird gespeichert und in der Trainingsübersicht, im Kalender und im Excel-Export angezeigt. Bei nachgetragenen Trainings startest du den Timer bei Bedarf selbst.
 - **Werte vom letzten Training** sind grau vorausgefüllt – getrennt für Gewicht und Wiederholungen: Trägst du nur das Gewicht ein, bleiben die Wiederholungen vom letzten Mal grau stehen und werden so gespeichert. Hast du einen Satz genau wie beim letzten Mal geschafft, tippe auf die Satznummer → *Vorschlag übernehmen*. Sätze, in denen gar nichts eingetragen wurde, fragt die App beim Beenden nach (nur eingetragene speichern oder Vorschläge mitspeichern).
 - **Maschine besetzt?** Über das Pfeil-Symbol oben rechts sortierst du das Training um, auf Wunsch auch dauerhaft im Plan.
@@ -17,7 +19,7 @@ Fightclub ist eine Fitness-App mit sachlichem, datenorientiertem Design. Damit v
 - **Fortschritt**: Diagramm pro Übung (max. Gewicht, geschätztes 1RM oder Volumen) mit Start, Aktuell, Bestwert und Steigerung, dazu Trendlinie (lineare Regression) mit Steigung pro Woche und R².
 - **Kalender**: Trainingstage in der Farbe des Plans (z. B. Push = Rot, Beine = Blau). Hier kannst du auch Trainings nachtragen.
 - **Körpergewicht** mit Diagramm (1M / 3M / 6M / 1J / Alle), unter *Fortschritt → Körpergewicht*, ebenfalls mit Trendlinie.
-- **Ernährung** als eigener Bereich wie bei MyFitnessPal: Kalorien-Tagebuch mit Mahlzeiten, **Strichcode-Scanner**, Lebensmittelsuche und Tageszielen (siehe unten).
+- **Ernährung** als eigener Bereich wie bei MyFitnessPal: Kalorien-Tagebuch mit Mahlzeiten, **Strichcode-Scanner**, **Lebensmittelsuche** (findet auch, was du noch nie eingetragen oder gescannt hast) und Tageszielen (siehe unten).
 - **Excel-Export** (.xlsx) aller Daten zur Auswertung.
 - **Login per E-Mail**, damit dein Stand auf allen Geräten synchron ist (siehe unten).
 
@@ -40,7 +42,7 @@ Im Ordner `docs/` liegt Fightclub als **Web-App**. Du öffnest sie einmal in Saf
 2. Unten auf **Teilen** (Quadrat mit Pfeil) → **Zum Home-Bildschirm** → *Hinzufügen*.
 3. Fightclub über das neue Icon starten. Fertig.
 
-Updates kommen automatisch: Nach einer Änderung im Repo lädt die App beim nächsten Öffnen die neue Version.
+**Start und Updates:** Die App liegt vollständig im Speicher des iPhones und startet von dort – sofort und auch ohne Empfang (z. B. im Studio-Keller). Eine neue Version lädt sie im Hintergrund; sie ist beim nächsten Öffnen aktiv (oder sofort, solange du noch nichts angetippt hast). Unter **Profil → Nach Update suchen** kannst du das auch von Hand anstoßen; die Versionsnummer steht darunter. Falls einmal etwas nicht stimmt, lädt *Nach Update suchen → App neu laden* alle Dateien frisch vom Server – deine Daten bleiben erhalten.
 
 *Untere Leiste nicht ganz unten?* iOS 26 macht Home-Bildschirm-Apps um die Höhe der Statusleiste zu kurz; Fightclub gleicht das aus (ab Version 12). Ganz unten im Profil stehen die Anzeige-Maße – auf einem iPhone 15 Pro sollte dort „Anzeige 393 × 852 · Bildschirm 393 × 852 · Home-Bildschirm-App“ stehen.
 
@@ -71,7 +73,7 @@ Ohne Einrichtung funktioniert die App normal, die Daten liegen dann nur auf dem 
    };
    ```
    Der anon-/publishable-Key darf öffentlich im Repo stehen. Er erlaubt nur das, was die Regeln aus `setup.sql` zulassen.
-8. Nach ca. 1 Minute ist GitHub Pages aktualisiert. Fightclub auf dem iPhone **komplett schließen** (vom unteren Rand nach oben wischen und die App wegschieben) und neu öffnen.
+8. Nach ca. 1 Minute ist GitHub Pages aktualisiert. Fightclub auf dem iPhone **komplett schließen** (vom unteren Rand nach oben wischen und die App wegschieben) und neu öffnen. Die App bemerkt die geänderte Datei beim Start und übernimmt sie von selbst. Steht im Profil danach noch kein Anmeldeformular: *Profil → Nach Update suchen → App neu laden*.
 
 **Teil C – Anmelden**
 
@@ -90,15 +92,20 @@ Ein eigener Bereich (Tab **Ernährung**, Kopfzeile mit petrolfarbener Linie) zum
 
 - **Tagebuch** mit Frühstück, Mittagessen, Abendessen und Snacks, oben die Bilanz **Ziel − Essen = Übrig** sowie Balken für Eiweiß, Kohlenhydrate und Fett. Mit ‹ › oder durch Tippen aufs Datum wechselst du den Tag.
 - **Strichcode scannen:** Die Kamera erkennt den Strichcode auf der Verpackung. Die Nährwerte kommen aus [Open Food Facts](https://world.openfoodfacts.org), einer freien Datenbank mit sehr vielen deutschen Produkten. Danach nur noch die Menge wählen (Portion, 50 g, 100 g … oder eintippen) und **Hinzufügen**. Klappt die Live-Kamera nicht, geht es auch per **Foto** oder durch **Eintippen** der Ziffern.
-- **Unbekanntes Produkt?** Einmal selbst anlegen: Eiweiß, Kohlenhydrate und Fett pro 100 g von der Verpackung eintragen, die Kalorien rechnet die App aus (Eiweiß und Kohlenhydrate × 4, Fett × 9 kcal/g). Beim nächsten Scan wird es sofort erkannt, auch offline und auf allen Geräten.
-- **Suche:** Zuerst deine eigenen und zuletzt gegessenen Lebensmittel (sofort, offline), mit der Lupe zusätzlich online in Open Food Facts.
+- **Unbekanntes Produkt?** Einmal selbst anlegen – in zwei Schritten: erst Name und Marke, dann Eiweiß, Kohlenhydrate und Fett pro 100 g von der Verpackung. Die Kalorien rechnet die App aus (Eiweiß und Kohlenhydrate × 4, Fett × 9 kcal/g). Beim nächsten Scan wird es sofort erkannt, auch offline und auf allen Geräten.
+- **Suche:** Das Suchfeld steht oben im Tagebuch (und hinter jedem „Hinzufügen“). Schon beim Tippen erscheinen Treffer aus drei Quellen:
+  1. **deine** Rezepte, eigenen und zuletzt gegessenen Lebensmittel,
+  2. eine **eingebaute Liste mit rund 400 Grundnahrungsmitteln und Gerichten** (Obst, Gemüse, Fleisch, Milchprodukte, Brot, Getränke, Fast Food …) – sofort und offline, auch wenn du das Lebensmittel noch nie eingetragen hast. Die Werte sind übliche Richtwerte pro 100 g, dazu passende Portionen („1 Stück“, „1 Scheibe“, „1 Glas“). Groß-/Kleinschreibung und Umlaute spielen keine Rolle („Hähnchen“ = „Haehnchen“),
+  3. **Marken-Produkte aus Open Food Facts** – sie werden kurz nach dem Tippen online gesucht. Ist die Online-Suche einmal nicht erreichbar, steht das dabei, und die übrigen Treffer funktionieren weiter.
+  
+  Ein online gefundenes Produkt wird beim ersten Eintragen gemerkt und ist danach sofort und offline da.
 - **Zuletzt gegessen** mit einem Tipp erneut eintragen, **„Wie gestern übernehmen“** für eine ganze Mahlzeit, **Schnell-Eintrag**: nur die Makros eintippen, die Kalorien werden berechnet.
-- **Rezepte** für Gerichte, die du oft isst: Name, Anzahl Portionen und Zutaten. Kalorien und Makros werden für das ganze Gericht und pro Portion berechnet (optional mit dem Gewicht nach dem Kochen). **Per Scan:** Zutat scannen, Menge wählen, und der Scanner öffnet sich sofort für die nächste Zutat, bis du auf *Fertig* tippst. Im Tagebuch erscheinen Rezepte beim Hinzufügen ganz oben und lassen sich mit *½ / 1 / 1½ / 2 Portionen* eintragen.
+- **Rezepte** für Gerichte, die du oft isst: Name, Anzahl Portionen und Zutaten. Zutaten findest du über dieselbe Suche (eigene, eingebaute Liste, Open Food Facts). Kalorien und Makros werden für das ganze Gericht und pro Portion berechnet (optional mit dem Gewicht nach dem Kochen). **Per Scan:** Zutat scannen, Menge wählen, und der Scanner öffnet sich sofort für die nächste Zutat, bis du auf *Fertig* tippst. Ein angefangenes Rezept bleibt als „Rezept in Arbeit“ erhalten. Im Tagebuch erscheinen Rezepte in der Suche ganz oben und lassen sich mit *½ / 1 / 1½ / 2 Portionen* eintragen.
 - **Ziele:** Auf die Bilanz tippen und die Makroziele eintragen, das Kalorienziel ergibt sich daraus.
 - **Statistik:** 14-Tage-Diagramm, Durchschnittswerte und die Verteilung von Eiweiß, Kohlenhydraten und Fett.
 - **Produkte:** Deine eigenen und gescannten Lebensmittel verwalten.
 
-Die Kamera fragt beim ersten Scan nach Erlaubnis. Wurde sie abgelehnt: *iPhone-Einstellungen → Safari → Kamera → Fragen/Erlauben*. Die Strichcode-Erkennung läuft komplett auf dem iPhone. Nur das Nachschlagen eines neuen Produkts braucht Internet.
+Die Kamera fragt beim ersten Scan nach Erlaubnis. Wurde sie abgelehnt: *iPhone-Einstellungen → Safari → Kamera → Fragen/Erlauben*. Die Strichcode-Erkennung läuft komplett auf dem iPhone. Nur das Nachschlagen eines neuen Produkts und die Online-Suche brauchen Internet.
 
 ## Excel
 
@@ -163,8 +170,10 @@ docs/                           Web-App
 ├── js/sync.js                    Login per E-Mail + Synchronisierung (Supabase REST)
 ├── js/xlsx.js                    Excel-Export ohne externe Bibliothek
 ├── js/food.js                    Ernährung: Tagebuch, Suche, Open Food Facts
+├── js/fooddb.js                  Eingebaute Lebensmittel-Liste (Richtwerte pro 100 g) für die Suche
 ├── js/recipes.js                 Rezepte (Zutaten scannen/suchen, Portionen)
 ├── js/scanner.js                 Strichcode-Scanner (Kamera/Foto)
+├── sw.js                         Offline-Speicher: Start ohne Netz, Updates im Hintergrund
 ├── vendor/                       Strichcode-Erkennung (barcode-detector + ZXing-C++ WebAssembly, MIT/Apache-2.0)
 └── fonts/                        IBM Plex Sans & Mono (App), Bangers (nur Icon-Vorlage), SIL Open Font License
 design/icon.svg                 Vorlage für das App-Icon (Seife im Comic-Look)

@@ -12,6 +12,8 @@
 const FCData = (() => {
   const COLLECTIONS = ['plans', 'workouts', 'weights', 'food', 'foods', 'recipes', 'notes'];
 
+  // restSec und sound gehörten zur früheren Pausen-Anzeige. Sie bleiben im Datenmodell,
+  // damit Sicherungen und Geräte mit älterer App-Version weiter zusammenpassen.
   const DEFAULT_SETTINGS = { restSec: 90, kcalGoal: 2500, proteinGoal: 150, carbsGoal: 280, fatGoal: 80, sound: true, upd: 0 };
 
   function empty() {

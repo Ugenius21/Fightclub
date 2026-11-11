@@ -7,7 +7,7 @@
    ========================================================= */
 
 /** Wird im Profil angezeigt – so lässt sich prüfen, ob die neueste Version geladen ist. */
-const APP_VERSION = '12';
+const APP_VERSION = '13';
 
 const STORE_KEY = 'fightclub-data';
 const DRAFT_KEY = 'fightclub-draft';
@@ -75,13 +75,26 @@ function removeRec(coll, id) {
 }
 function touchSettings() { data.settings.upd = Date.now(); }
 
+/* Kommt beim Synchronisieren ein neuer Stand, wird die Ansicht erst neu gezeichnet,
+   wenn gerade nichts eingegeben wird – sonst gingen Tipper verloren. */
+let pendingRender = false;
+function busyInput() {
+  const a = document.activeElement;
+  return !!(a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) || sheetOpen() || Keypad.isOpen();
+}
+function flushPendingRender() {
+  if (!pendingRender || busyInput()) return;
+  pendingRender = false;
+  render();
+}
+
 Sync.attach({
   getData: () => data,
   setData: (d) => {
     data = d;
     persist();
-    const active = document.activeElement;
-    if (!(active && /INPUT|TEXTAREA|SELECT/.test(active.tagName)) && $('#sheet').hidden) render();
+    if (busyInput()) pendingRender = true;
+    else render();
   },
 });
 
@@ -106,7 +119,6 @@ const fmtDate = (s, withYear = true) => { const [y, m, d] = s.split('-'); return
 const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const fmtDateLong = (s) => `${WEEKDAYS[parseDate(s).getDay()]}, ${fmtDate(s)}`;
-const fmtTime = (sec) => `${Math.floor(sec / 60)}:${pad(Math.floor(sec % 60))}`;
 
 const planById = (id) => data.plans.find((p) => p.id === id);
 const planColor = (id) => (planById(id) || {}).color || '#546E7A';
@@ -156,31 +168,8 @@ function toast(msg) {
   t.className = 'toast';
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 1900);
-}
-
-/* Kurzer Ton am Ende der Pause (iOS erlaubt Audio erst nach einem Tipp) */
-let audioCtx = null;
-function unlockAudio() {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  } catch (e) { audioCtx = null; }
-}
-function beep() {
-  if (!audioCtx || !data.settings.sound) return;
-  [0, 0.22, 0.44].forEach((t, i) => {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'square';
-    o.frequency.value = i === 2 ? 1175 : 880;
-    g.gain.setValueAtTime(0.0001, audioCtx.currentTime + t);
-    g.gain.exponentialRampToValueAtTime(0.15, audioCtx.currentTime + t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + t + 0.18);
-    o.connect(g).connect(audioCtx.destination);
-    o.start(audioCtx.currentTime + t);
-    o.stop(audioCtx.currentTime + t + 0.2);
-  });
+  setTimeout(() => t.classList.add('out'), 1800);
+  setTimeout(() => t.remove(), 2050);
 }
 
 async function shareFile(bytesOrText, name, mime) {
@@ -202,15 +191,34 @@ async function shareFile(bytesOrText, name, mime) {
    NAVIGATION
    ========================================================= */
 
+const TABS = ['plans', 'food', 'calendar', 'progress', 'profile'];
 const nav = { tab: 'plans', stack: [] };
 const current = () => nav.stack[nav.stack.length - 1] || { view: nav.tab };
+
+/* Zuletzt geöffneten Bereich merken: iOS lädt Home-Bildschirm-Apps im Hintergrund
+   oft neu – danach geht es dort weiter, wo man war (z. B. mitten im Training). */
+const NAV_KEY = 'fightclub-nav';
+function rememberNav() {
+  try { localStorage.setItem(NAV_KEY, JSON.stringify({ tab: nav.tab, workout: current().view === 'workout', t: Date.now() })); }
+  catch (e) { /* privater Modus */ }
+}
 
 /** Inhalt nach oben scrollen (die Seite selbst scrollt nicht, nur <main>). */
 const scrollTop = () => { $('#view').scrollTop = 0; };
 
-function go(view, params = {}) { nav.stack.push({ view, ...params }); render(); scrollTop(); }
-function back() { nav.stack.pop(); render(); scrollTop(); }
-function switchTab(tab) { nav.tab = tab; nav.stack = []; render(); scrollTop(); }
+function go(view, params = {}) { nav.stack.push({ view, ...params }); render(true); scrollTop(); }
+function back() { nav.stack.pop(); render(true); scrollTop(); }
+function switchTab(tab) {
+  // Denselben Tab noch einmal antippen: nur weich nach oben scrollen
+  if (nav.tab === tab && !nav.stack.length && !Keypad.isOpen()) {
+    const v = $('#view');
+    if (v.scrollTop > 0 && v.scrollTo) { v.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  }
+  nav.tab = tab;
+  nav.stack = [];
+  render(true);
+  scrollTop();
+}
 
 $('#backBtn').innerHTML = ico('chevl');
 $$('[data-ico]').forEach((el) => { el.innerHTML = ico(el.dataset.ico); });
@@ -244,32 +252,93 @@ function setHeader(title, actionHtml = '') {
   $('#backBtn').classList.toggle('off', nav.stack.length === 0);
   $('#topAction').innerHTML = actionHtml;
   $$('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.tab === nav.tab));
-  requestAnimationFrame(() => document.documentElement.style.setProperty('--topbar-h', $('.topbar').offsetHeight + 'px'));
 }
 
-function render() {
+let enterTimer = null;
+/** anim = true: Die Ansicht wurde gewechselt (sanft einblenden). Sonst wird nur neu gezeichnet. */
+function render(anim) {
   const c = current();
   document.body.classList.toggle('workout-mode', c.view === 'workout');
   document.body.classList.toggle('food-mode', c.view === 'food');
   if (Keypad.isOpen() && Keypad.owner() !== c.view) Keypad.close();
-  if (!Keypad.isOpen() && c.view !== 'workout') document.documentElement.style.setProperty('--kp-space', '0px');
-  if (c.view !== 'workout') $('#timerHolder').innerHTML = '';
+  if (c.view !== 'workout') { $('#timerHolder').innerHTML = ''; $('#footHolder').innerHTML = ''; }
   const views = { plans: viewPlans, plan: viewPlan, workout: viewWorkout, calendar: viewCalendar, progress: viewProgress, food: viewNutrition, profile: viewProfile };
   (views[c.view] || viewPlans)(c);
+  if (anim) {
+    const v = $('#view');
+    if (!Keypad.isOpen()) Spacer.reset();
+    v.classList.remove('enter');
+    void v.offsetWidth;
+    v.classList.add('enter');
+    clearTimeout(enterTimer);
+    enterTimer = setTimeout(() => v.classList.remove('enter'), 300);
+    rememberNav();
+  }
 }
 
 /* =========================================================
-   SHEET (Dialog von unten)
+   SHEET – Dialog von unten bzw. Eingabeseite
    ========================================================= */
 
-function openSheet(html, onMount) {
-  if (Keypad.isOpen()) Keypad.close();
-  $('#sheetCard').innerHTML = html;
-  $('#sheet').hidden = false;
-  $('#sheetCard').scrollTop = 0;
-  if (onMount) onMount($('#sheetCard'));
+const sheetEl = $('#sheet');
+const sheetCard = $('#sheetCard');
+let sheetOnClose = null;
+const sheetOpen = () => !sheetEl.hidden;
+const reducedMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/** Tastatur schließen, falls gerade ein Textfeld aktiv ist */
+function blurActive() {
+  const a = document.activeElement;
+  if (a && a !== document.body && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) a.blur();
 }
-function closeSheet() { $('#sheet').hidden = true; $('#sheetCard').innerHTML = ''; }
+
+/** Kopfzeile eines Sheets: Titel und Schließen-Knopf (title ist bereits HTML-sicher). */
+const sheetHead = (title, icon) => `<div class="sheet-head"><h2>${icon ? ico(icon) : ''}<span>${title}</span></h2><button class="ibtn ghost" data-close aria-label="Schließen">${ico('x')}</button></div>`;
+
+/** opts.full: oben verankerte Eingabeseite – Textfelder stehen dann über der Tastatur,
+    und iOS muss die Seite nicht verschieben. opts.onClose: Aufräumen beim Schließen. */
+function openSheet(html, onMount, opts = {}) {
+  if (Keypad.isOpen()) Keypad.close();
+  blurActive();
+  const wasOpen = sheetOpen();
+  const prev = sheetOnClose;
+  sheetOnClose = opts.onClose || null;
+  if (prev) prev();
+  sheetCard.className = `sheet-card${opts.full ? ' full' : ''}${opts.cls ? ' ' + opts.cls : ''}`;
+  sheetCard.innerHTML = html;
+  sheetEl.hidden = false;
+  sheetCard.scrollTop = 0;
+  sheetEl.classList.remove('in', 'swap');
+  void sheetEl.offsetWidth;
+  sheetEl.classList.add(wasOpen ? 'swap' : 'in');
+  $$('[data-close]', sheetCard).forEach((b) => b.addEventListener('click', closeSheet));
+  if (onMount) onMount(sheetCard);
+}
+
+function closeSheet() {
+  if (!sheetOpen()) return;
+  blurActive();
+  const cb = sheetOnClose;
+  sheetOnClose = null;
+  if (!reducedMotion()) {
+    // Eine Kopie (ohne ids) gleitet weg – das Original ist sofort leer, der Ablauf bleibt einfach.
+    const ghost = sheetEl.cloneNode(true);
+    ghost.removeAttribute('id');
+    ghost.className = 'sheet sheet-ghost';
+    $$('[id]', ghost).forEach((n) => n.removeAttribute('id'));
+    // Getippter Text soll beim Wegblenden stehen bleiben (eine Kopie übernimmt ihn nicht von selbst)
+    const typed = $$('input, textarea', sheetEl);
+    $$('input, textarea', ghost).forEach((n, i) => { if (typed[i]) n.value = typed[i].value; });
+    document.body.appendChild(ghost);
+    const gc = $('.sheet-card', ghost);
+    if (gc) gc.scrollTop = sheetCard.scrollTop;
+    setTimeout(() => ghost.remove(), 230);
+  }
+  sheetEl.hidden = true;
+  sheetCard.innerHTML = '';
+  if (cb) cb();
+  setTimeout(flushPendingRender, 0);
+}
 $('.sheet-backdrop').addEventListener('click', closeSheet);
 
 function colorPicker(selected) {
@@ -287,14 +356,14 @@ function bindColorPicker(root, onPick) {
 /** Liste per Ziehen am Griff neu sortieren. */
 function reorderSheet(title, items, onSave, extraHtml = '') {
   openSheet(`
-    <h2>${esc(title)}</h2>
+    ${sheetHead(esc(title), 'reorder')}
     <p class="hint">Halte den Griff rechts gedrückt und ziehe die Übung an die gewünschte Stelle.</p>
     <ul class="reorder" id="reorderList">
       ${items.map((it, i) => `<li data-i="${i}"><span class="n">${i + 1}</span><span class="t">${esc(it)}</span><button class="handle" aria-label="Verschieben">${ico('grip')}</button></li>`).join('')}
     </ul>
     ${extraHtml}
-    <button class="btn primary" id="reorderSave" style="margin-top:16px">Übernehmen</button>
-    <button class="btn danger" id="reorderCancel">Abbrechen</button>
+    <div class="gap-l"></div>
+    <button class="btn primary" id="reorderSave">Übernehmen</button>
   `, (root) => {
     const list = $('#reorderList', root);
     const renumber = () => $$('li', list).forEach((li, i) => { $('.n', li).textContent = i + 1; });
@@ -326,7 +395,6 @@ function reorderSheet(title, items, onSave, extraHtml = '') {
         h.addEventListener('pointercancel', up);
       });
     });
-    $('#reorderCancel').onclick = closeSheet;
     $('#reorderSave').onclick = () => {
       const order = $$('li', list).map((li) => Number(li.dataset.i));
       const extra = {};
@@ -338,24 +406,69 @@ function reorderSheet(title, items, onSave, extraHtml = '') {
 }
 
 /* =========================================================
+   PLATZHALTER unter dem Inhalt (main::after, siehe style.css)
+   Solange das Zahlenfeld offen ist, lässt sich so jede Zeile nach oben
+   holen. Beim Schließen bleibt genau so viel Platz, dass nichts springt;
+   er verschwindet unbemerkt, sobald man wieder nach oben scrollt.
+   ========================================================= */
+
+const Spacer = (() => {
+  const main = $('#view');
+  let space = 0;
+  const set = (px) => {
+    const v = Math.max(0, Math.round(px));
+    if (v === space) return;
+    space = v;
+    document.documentElement.style.setProperty('--kp-space', space + 'px');
+  };
+  const grow = () => { const need = main.clientHeight - 120; if (need > space) set(need); };
+  const settle = () => {
+    if (!space) return;
+    const typing = document.body.classList.contains('typing') ? window.innerHeight * 0.55 : 0;
+    const content = main.scrollHeight - space - typing;
+    const needed = main.scrollTop + main.clientHeight - content;
+    if (needed < space) set(needed);
+  };
+  let ticking = false;
+  main.addEventListener('scroll', () => {
+    if (!space || ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => { ticking = false; if (!Keypad.isOpen()) settle(); });
+  }, { passive: true });
+  return { grow, settle, reset: () => set(0) };
+})();
+
+/* =========================================================
    ZAHLENFELD (statt iOS-Tastatur)
+
+   Wird beim Öffnen einmal aufgebaut und danach nur noch aktualisiert –
+   so geht kein Tipper verloren, auch nicht bei schnellem Tippen mit zwei
+   Daumen. Ziffern, Löschen und ± reagieren schon beim Antippen; ± und
+   Löschen wiederholen sich, solange man sie gedrückt hält.
+
+   Felder einer Gruppe (z. B. Gewicht und Wiederholungen eines Satzes)
+   stehen als Kästchen nebeneinander; das aktive ist hervorgehoben.
    ========================================================= */
 
 const Keypad = (() => {
   const el = $('#keypad');
+  const rootStyle = document.documentElement.style;
   let o = null;
-  let idx = 0;
+  let idx = -1;
   let fresh = true;
   let buf = '';
+  let boxSig = '';
+  let hideTimer = null;
+  let repeatTimer = null;
+  let inputCount = 0;   // zählt jede Eingabe – so lässt sich erkennen, ob seit einer Berührung noch etwas getippt wurde
 
+  const INSTANT = /^(\d|comma|back|clear|plus|minus)$/;
+  const REPEAT = /^(back|plus|minus)$/;
   const field = () => o.fields[idx];
-  const setHeight = (h) => {
-    const root = document.documentElement.style;
-    root.setProperty('--kp-h', h + 'px');
-    // Platz unter dem Inhalt wächst mit, schrumpft beim Schließen aber nicht sofort –
-    // sonst springt die Liste nach unten, wenn man ganz unten war (siehe render()).
-    if (h > (parseFloat(root.getPropertyValue('--kp-space')) || 0)) root.setProperty('--kp-space', h + 'px');
-    document.body.classList.toggle('kp-open', h > 0);
+  const groupOf = (f) => (o.group ? o.group(f) : o.chips ? '*' : f.key);
+  const groupIdx = () => {
+    const g = groupOf(field());
+    return o.fields.map((x, i) => i).filter((i) => groupOf(o.fields[i]) === g);
   };
 
   function parse(s) {
@@ -364,60 +477,85 @@ const Keypad = (() => {
     return isFinite(n) ? n : null;
   }
 
-  function display() {
-    const f = field();
-    const v = f.get();
-    const txt = !fresh ? (buf || '0') : v == null ? '–' : fmtNum(v, f.decimals ?? 2);
-    return `${esc(txt)}<small>${esc(f.unit || '')}</small>`;
-  }
-  /** Vorschlagswert (grau), solange in diesem Feld noch nichts eingetippt wurde */
-  const isGhost = () => fresh && !!(field().isGhost && field().isGhost());
-
-  function draw() {
-    const f = field();
+  function build() {
     const many = o.fields.length > 1;
     el.innerHTML = `<div class="kp-inner">
       <div class="kp-head">
-        <div class="kp-title">${o.title ? o.title(f, idx) : `<b>${esc(f.label)}</b>`}</div>
-        <span class="kp-rest" id="kpRest">${restBadge()}</span>
-        ${o.onCancel ? `<button class="ibtn" data-k="cancel" aria-label="Abbrechen">${ico('x')}</button>` : ''}
+        <div class="kp-title" id="kpTitle"></div>
+        ${o.onCancel ? `<button class="ibtn ghost" data-k="cancel" aria-label="Abbrechen">${ico('x')}</button>` : ''}
       </div>
-      ${typeof o.extraHtml === 'function' ? o.extraHtml() : (o.extraHtml || '')}
-      ${o.chips && many ? `<div class="kp-chips">${o.fields.map((x, i) => `<button data-chip="${i}" class="${i === idx ? 'on' : ''}">${esc(x.label)}<b>${x.get() == null ? '–' : fmtNum(x.get(), x.decimals ?? 1)}</b></button>`).join('')}</div>` : ''}
+      <div class="kp-extra" id="kpExtra"></div>
       <div class="kp-display">
-        <button class="kp-step" data-k="minus">−${fmtNum(f.step, 2)}</button>
-        <div class="v ${isGhost() ? 'ghost' : ''}" id="kpValue">${display()}</div>
-        <button class="kp-step" data-k="plus">+${fmtNum(f.step, 2)}</button>
+        <button class="kp-step" data-k="minus" id="kpMinus" aria-label="Weniger"></button>
+        <div class="kp-boxes" id="kpBoxes"></div>
+        <button class="kp-step" data-k="plus" id="kpPlus" aria-label="Mehr"></button>
       </div>
       <div class="kp-grid">
         <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="back" class="muted-key" aria-label="Löschen">${ico('backspace')}</button>
         <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
-        ${many ? '<button data-k="next" class="next">Weiter</button>' : '<button data-k="clear" class="next muted-key">C</button>'}
+        ${many ? '<button data-k="next" class="next">Weiter</button>' : '<button data-k="clear" class="next muted-key" aria-label="Leeren">C</button>'}
         <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
-        <button data-k="comma" ${f.int ? 'disabled style="opacity:.3"' : ''}>,</button><button data-k="0">0</button>
-        <button data-k="ok" class="ok" style="grid-column: span 2">${esc(o.okLabel || 'Fertig')}</button>
+        <button data-k="comma" id="kpComma">,</button><button data-k="0">0</button>
+        <button data-k="ok" class="ok">${esc(o.okLabel || 'Fertig')}</button>
       </div>
     </div>`;
-    $$('[data-k]', el).forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
-    $$('[data-chip]', el).forEach((b) => b.addEventListener('click', () => focus(Number(b.dataset.chip))));
-    if (o.onDraw) o.onDraw(el);
-    requestAnimationFrame(() => setHeight(el.offsetHeight));
+    drawExtra();
   }
 
-  function refreshValue() {
-    const v = $('#kpValue', el);
-    if (v) { v.innerHTML = display(); v.classList.toggle('ghost', isGhost()); }
-    const chip = $(`[data-chip="${idx}"] b`, el);
-    if (chip) { const x = field().get(); chip.textContent = x == null ? '–' : fmtNum(x, field().decimals ?? 1); }
+  function drawExtra() {
+    const x = $('#kpExtra', el);
+    if (!x) return;
+    x.innerHTML = typeof o.extraHtml === 'function' ? o.extraHtml() : (o.extraHtml || '');
+    if (o.onDraw) o.onDraw(el);
+  }
+
+  function paintBox(i) {
+    const b = $(`[data-chip="${i}"]`, el);
+    if (!b) return;
+    const x = o.fields[i];
+    const active = i === idx;
+    const v = x.get();
+    const typing = active && !fresh;
+    const txt = typing ? (buf || '0') : v == null ? '–' : fmtNum(v, x.decimals ?? 2);
+    $('b', b).innerHTML = `${esc(txt)}<i>${esc(x.unit || '')}</i>`;
+    b.classList.toggle('on', active);
+    b.classList.toggle('ghost', !typing && !!(x.isGhost && x.isGhost()));
+  }
+
+  /** Alles Veränderliche auf den Stand des aktiven Felds bringen (ohne Neuaufbau). */
+  function sync() {
+    const f = field();
+    $('#kpTitle', el).innerHTML = o.title ? o.title(f, idx) : `<b>${esc(f.label)}</b>`;
+    const g = groupIdx();
+    const sig = g.join(',');
+    const boxes = $('#kpBoxes', el);
+    if (sig !== boxSig) {
+      boxSig = sig;
+      boxes.innerHTML = g.map((i) => `<button class="kp-box" data-chip="${i}"><small>${esc(o.fields[i].label)}</small><b></b></button>`).join('');
+      boxes.dataset.n = g.length;
+    }
+    g.forEach(paintBox);
+    el.classList.toggle('no-steps', g.length > 2);
+    $('#kpMinus', el).textContent = `−${fmtNum(f.step, 2)}`;
+    $('#kpPlus', el).textContent = `+${fmtNum(f.step, 2)}`;
+    $('#kpComma', el).disabled = !!f.int;
+  }
+
+  function measure() {
+    el.classList.toggle('fits', el.scrollHeight <= el.clientHeight + 1);
+    rootStyle.setProperty('--kp-h', el.offsetHeight + 'px');
+    Spacer.grow();
   }
 
   function commit(v) {
     field().set(v);
     if (o.onChange) o.onChange(field(), idx);
-    refreshValue();
+    paintBox(idx);
   }
 
   function press(k) {
+    if (!o) return;
+    inputCount += 1;
     const f = field();
     if (/^\d$/.test(k)) {
       if (fresh) { buf = k; fresh = false; }
@@ -433,7 +571,7 @@ const Keypad = (() => {
       if (f.int) return;
       if (fresh) { buf = '0,'; fresh = false; }
       else if (!buf.includes(',')) buf = (buf || '0') + ',';
-      return refreshValue();
+      return paintBox(idx);
     }
     if (k === 'back') {
       if (fresh) { buf = ''; fresh = false; }
@@ -453,30 +591,135 @@ const Keypad = (() => {
       return done();
     }
     if (k === 'ok') return done();
-    if (k === 'cancel') { const cb = o.onCancel; close(); cb(); }
+    if (k === 'cancel') { const cb = o.onCancel; close(); if (cb) cb(); }
   }
 
   function focus(i) {
-    const to = Math.max(0, Math.min(o.fields.length - 1, i));
-    if (idx >= 0 && o.onLeave && o.fields[idx]) o.onLeave(o.fields[idx], o.fields[to]);
-    idx = to;
+    idx = Math.max(0, Math.min(o.fields.length - 1, i));
     fresh = true;
     buf = '';
-    draw();
+    sync();
     if (o.onFocus) o.onFocus(field(), idx);
   }
 
+  /* ----- Tasten -----
+     Ziffern, Komma, Löschen und ± wirken sofort beim Antippen (pointerdown) – auch
+     wenn zwei Finger schnell abwechselnd tippen. Der spätere „click“ derselben
+     Berührung wird übergangen. „Weiter“, „Fertig“ und „Abbrechen“ lösen wie gewohnt
+     beim Loslassen aus (Finger wegziehen bricht ab). */
+  const awaitingClick = new Map();   // Taste → Nummer der Berührung, deren click noch aussteht
+  const touches = new Map();         // pointerId → [Taste, Nummer]
+  let touchSeq = 0;
+  let repeatBtn = null;
+  const stopRepeat = () => { clearTimeout(repeatTimer); repeatTimer = null; repeatBtn = null; };
+  function startRepeat(b) {
+    stopRepeat();
+    repeatBtn = b;
+    const k = b.dataset.k;
+    let n = 0;
+    const tick = () => {
+      if (!o || repeatBtn !== b || !b.isConnected) return stopRepeat();
+      press(k);
+      n += 1;
+      repeatTimer = setTimeout(tick, n > 8 ? 55 : 95);
+    };
+    repeatTimer = setTimeout(tick, 420);
+  }
+  /* Passt das Zahlenfeld nicht ganz auf den Bildschirm, lässt es sich scrollen –
+     dann lösen die Tasten erst beim Loslassen aus, damit Scrollen nichts eintippt. */
+  const instant = (k) => INSTANT.test(k) && el.scrollHeight <= el.clientHeight + 1;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (!o) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const chip = e.target.closest('[data-chip]');
+    if (chip) {
+      const i = Number(chip.dataset.chip);
+      if (i !== idx) focus(i);
+      return;
+    }
+    const b = e.target.closest('[data-k]');
+    if (!b || b.disabled || !instant(b.dataset.k)) return;
+    touchSeq += 1;
+    const f = field();
+    const undo = { o, idx, buf, fresh, field: f, state: f.save ? f.save() : f.get() };
+    awaitingClick.set(b, touchSeq);
+    touches.set(e.pointerId, [b, touchSeq, undo]);
+    press(b.dataset.k);
+    undo.after = inputCount;
+    if (REPEAT.test(b.dataset.k)) startRepeat(b);
+  });
+  el.addEventListener('click', (e) => {
+    if (!o) return;
+    const b = e.target.closest('[data-k]');
+    if (!b || b.disabled) return;
+    if (awaitingClick.delete(b)) return;   // wurde schon beim Antippen ausgeführt
+    press(b.dataset.k);
+  });
+  const release = (e) => {
+    const t = touches.get(e.pointerId);
+    if (!t) return;
+    touches.delete(e.pointerId);
+    const [b, seq] = t;
+    if (repeatBtn === b) stopRepeat();
+    // Folgt kein click (Finger weggezogen), wird die Merkhilfe nach kurzer Zeit gelöscht.
+    setTimeout(() => { if (awaitingClick.get(b) === seq) awaitingClick.delete(b); }, 700);
+  };
+  el.addEventListener('pointerup', release);
+  /* Bricht das iPhone eine Berührung ab (z. B. weil daraus ein Wischen zum Home-Bildschirm
+     wird), wird die dabei getippte Ziffer zurückgenommen – sofern seither nichts weiter
+     eingegeben wurde. */
+  el.addEventListener('pointercancel', (e) => {
+    const t = touches.get(e.pointerId);
+    release(e);
+    if (!t) return;
+    const u = t[2];
+    if (!o || o !== u.o || idx !== u.idx || inputCount !== u.after) return;
+    awaitingClick.delete(t[0]);
+    buf = u.buf;
+    fresh = u.fresh;
+    if (u.field.load) u.field.load(u.state); else u.field.set(u.state);
+    if (o.onChange) o.onChange(u.field, idx);
+    paintBox(idx);
+  });
+  // Gleitet der Finger beim Gedrückthalten von der Taste, endet die Wiederholung
+  el.addEventListener('pointermove', (e) => {
+    if (!repeatBtn) return;
+    const t = touches.get(e.pointerId);
+    if (!t || t[0] !== repeatBtn) return;
+    const r = repeatBtn.getBoundingClientRect();
+    if (e.clientX < r.left - 12 || e.clientX > r.right + 12 || e.clientY < r.top - 12 || e.clientY > r.bottom + 12) stopRepeat();
+  });
+  el.addEventListener('contextmenu', (e) => e.preventDefault());   // kein Menü bei langem Druck
+  window.addEventListener('blur', stopRepeat);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') stopRepeat(); });
+
   function open(opts, start = 0) {
-    if (!$('#sheet').hidden) closeSheet();
+    if (sheetOpen() && !opts.keepSheet) closeSheet();
+    blurActive();
+    clearTimeout(hideTimer);
+    const visible = !el.hidden;
     o = opts;
-    idx = -1;
+    boxSig = '';
+    awaitingClick.clear();
+    build();
     el.hidden = false;
-    focus(start);
+    if (!visible) void el.offsetHeight;   // Ausgangslage zeichnen, dann einfahren
+    el.classList.add('show');
+    idx = Math.max(0, Math.min(o.fields.length - 1, start));
+    fresh = true;
+    buf = '';
+    sync();
+    measure();
+    if (o.onFocus) o.onFocus(field(), idx);
   }
 
   function done() {
     if (!o) return;
-    if (o.onLeave && field()) o.onLeave(field(), null);
+    if (o.validate) {
+      const msg = o.validate();
+      if (msg) { toast(msg); return; }
+    }
     const cb = o.onDone;
     close();
     if (cb) cb();
@@ -486,13 +729,17 @@ const Keypad = (() => {
     if (!o) return;
     const cb = o.onClose;
     o = null;
-    el.hidden = true;
-    el.innerHTML = '';
-    setHeight(0);
+    stopRepeat();
+    el.classList.remove('show');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { el.hidden = true; el.innerHTML = ''; }, 260);
+    rootStyle.setProperty('--kp-h', '0px');
+    Spacer.settle();
     if (cb) cb();
+    setTimeout(flushPendingRender, 0);
   }
 
-  /** Neue Feldliste nach einem Neuzeichnen übernehmen (gleicher Schlüssel bleibt aktiv). */
+  /** Neue Feldliste nach einem Neuzeichnen der Ansicht übernehmen (gleicher Schlüssel bleibt aktiv). */
   function update(fields) {
     if (!o) return;
     const key = field().key;
@@ -500,6 +747,8 @@ const Keypad = (() => {
     const i = fields.findIndex((f) => f.key === key);
     if (i < 0) return close();
     idx = i;
+    boxSig = '';
+    sync();
     if (o.onFocus) o.onFocus(field(), idx);
   }
 
@@ -515,6 +764,8 @@ const Keypad = (() => {
     open, close, update, set,
     isOpen: () => !!o,
     owner: () => o && o.owner,
+    height: () => (o ? el.offsetHeight : 0),
+    redrawExtra: () => { if (o) { drawExtra(); measure(); } },
     focusKey: (key) => { if (!o) return false; const i = o.fields.findIndex((f) => f.key === key); if (i < 0) return false; focus(i); return true; },
     currentKey: () => (o ? field().key : null),
   };
@@ -595,22 +846,21 @@ function planEditor(plan) {
   const used = data.plans.map((p) => p.color);
   let color = plan ? plan.color : (COLORS.find(([, h]) => !used.includes(h)) || COLORS[0])[1];
   openSheet(`
-    <h2>${isNew ? 'Neuer Plan' : 'Plan bearbeiten'}</h2>
-    <label class="lbl">Name</label>
-    <input class="field" id="planName" placeholder="z. B. Push" value="${esc(plan ? plan.name : '')}" autocomplete="off" enterkeyhint="done">
+    ${sheetHead(isNew ? 'Neuer Plan' : 'Plan bearbeiten')}
+    <label class="lbl" for="planName">Name</label>
+    <input class="field" id="planName" placeholder="z. B. Push" value="${esc(plan ? plan.name : '')}" autocomplete="off" autocapitalize="sentences" enterkeyhint="done">
     <label class="lbl">Farbe im Kalender</label>
     ${colorPicker(color)}
-    <div style="height:20px"></div>
+    <div class="gap-l"></div>
     <button class="btn primary" id="savePlan">${isNew ? 'Erstellen' : 'Speichern'}</button>
     ${isNew ? '' : '<button class="btn danger" id="delPlan">Plan löschen</button>'}
-    <button class="btn danger" id="cancel" style="color:var(--muted)">Abbrechen</button>
   `, (root) => {
     bindColorPicker(root, (c) => { color = c; });
-    $('#cancel').onclick = closeSheet;
-    $('#planName').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#savePlan').click(); });
+    const input = $('#planName');
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#savePlan').click(); } });
     $('#savePlan').onclick = () => {
-      const name = $('#planName').value.trim();
-      if (!name) { $('#planName').focus(); return; }
+      const name = input.value.trim();
+      if (!name) { input.focus(); toast('Bitte einen Namen eingeben'); return; }
       if (isNew) {
         const p = touch({ id: uid(), name, color, exercises: [] });
         data.plans.push(p);
@@ -625,7 +875,8 @@ function planEditor(plan) {
       removeRec('plans', plan.id);
       save(); closeSheet(); back();
     };
-  });
+    if (isNew) input.focus();   // direkt lostippen – im selben Tipp, damit iOS die Tastatur zeigt
+  }, { full: true });
 }
 
 function viewPlan({ planId }) {
@@ -647,7 +898,7 @@ function viewPlan({ planId }) {
 
   v.innerHTML = `
     <div class="plan-card" style="--pc:${plan.color}">
-      <div class="info"><div class="name">${esc(plan.name)}</div><span class="sticker">${plan.exercises.length} Übungen</span></div>
+      <div class="info"><div class="name">${esc(plan.name)}</div><span class="sticker">${plan.exercises.length} Übung${plan.exercises.length === 1 ? '' : 'en'}</span></div>
       <button class="start-btn" id="start">${ico('play')}Starten</button>
     </div>
     <span class="label">Übungen</span>
@@ -656,7 +907,7 @@ function viewPlan({ planId }) {
 
   $('#editPlan').onclick = () => planEditor(plan);
   $('#start').onclick = () => startWorkout(plan.id, todayStr());
-  $('#addEx').onclick = () => addExerciseSheet((name) => { plan.exercises.push({ id: uid(), name }); touch(plan); save(); render(); });
+  $('#addEx').onclick = () => addExerciseSheet((name) => { plan.exercises.push({ id: uid(), name }); touch(plan); save(); render(); }, plan.exercises.map((e) => e.name));
   if ($('#reorder')) $('#reorder').onclick = () => reorderSheet('Reihenfolge', plan.exercises.map((e) => e.name), (order) => {
     plan.exercises = order.map((i) => plan.exercises[i]);
     touch(plan); save(); render();
@@ -664,53 +915,67 @@ function viewPlan({ planId }) {
   $$('[data-ex]', v).forEach((b) => b.onclick = () => exerciseMenu(plan, Number(b.dataset.ex)));
 }
 
-/** Mehrere Übungen schnell hintereinander hinzufügen. */
-function addExerciseSheet(onAdd) {
+/** Mehrere Übungen schnell hintereinander hinzufügen: eintippen oder aus den
+    bekannten Übungen antippen. taken = Namen, die schon vorhanden sind. */
+function addExerciseSheet(onAdd, taken = []) {
   const known = [...new Set(data.plans.flatMap((p) => p.exercises.map((e) => e.name)))].sort((a, b) => a.localeCompare(b, 'de'));
+  const have = new Set(taken.map(norm));
+  const added = [];
   openSheet(`
-    <h2>Übung hinzufügen</h2>
-    <div class="row">
-      <input class="field grow" id="exName" placeholder="z. B. Bankdrücken" list="exList" autocomplete="off" enterkeyhint="done">
-      <button class="btn primary" id="exAdd" style="width:auto;padding:0 16px" aria-label="Hinzufügen">${ico('plus')}</button>
-    </div>
-    <datalist id="exList">${known.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
-    <p class="hint" id="exAdded">Tipp: Mit „Return“ kannst du direkt die nächste Übung eintippen.</p>
+    ${sheetHead('Übung hinzufügen')}
+    <form class="row" id="exForm">
+      <input class="field grow" id="exName" placeholder="z. B. Bankdrücken" autocomplete="off" autocapitalize="sentences" enterkeyhint="done">
+      <button class="btn primary" type="submit" style="width:54px;flex:none;padding:0" aria-label="Hinzufügen">${ico('plus')}</button>
+    </form>
+    <p class="hint" id="exAdded" style="margin:10px 2px 0">Eintippen und mit „Fertig“ auf der Tastatur bestätigen – danach kannst du gleich die nächste Übung eingeben.</p>
+    <div id="exSuggest"></div>
+    <div class="gap-l"></div>
     <button class="btn yellow" id="exDone">Fertig</button>
   `, () => {
     const input = $('#exName');
-    const added = [];
-    const add = () => {
-      const name = input.value.trim();
-      if (!name) { input.focus(); return; }
-      onAdd(name);
-      added.push(name);
-      $('#exAdded').innerHTML = 'Hinzugefügt: <b>' + added.map(esc).join(', ') + '</b>';
-      input.value = '';
-      input.focus();
+    const suggest = () => {
+      const q = norm(input.value);
+      const list = known.filter((n) => !have.has(norm(n)) && (!q || norm(n).includes(q))).slice(0, 8);
+      $('#exSuggest').innerHTML = list.length
+        ? `<div class="res-title">${q ? 'Passende Übungen' : 'Aus deinen Plänen'}</div><div class="panel res-list">${list.map((n) => `<button type="button" class="food-row" data-sug="${esc(n)}"><div class="grow"><div class="t">${esc(n)}</div></div><span class="plus">${ico('plus')}</span></button>`).join('')}</div>`
+        : '';
+      $$('[data-sug]').forEach((b) => b.onclick = () => add(b.dataset.sug));
     };
-    $('#exAdd').onclick = add;
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
-    $('#exDone').onclick = () => { if (input.value.trim()) add(); closeSheet(); };
-    setTimeout(() => input.focus(), 60);
-  });
+    const add = (raw) => {
+      const name = String(raw || '').trim();
+      if (!name) { input.focus(); return; }
+      if (have.has(norm(name))) { toast('Diese Übung ist schon dabei'); return; }
+      onAdd(name);
+      have.add(norm(name));
+      added.push(name);
+      $('#exAdded').innerHTML = `Hinzugefügt: <b>${added.map(esc).join(', ')}</b>`;
+      input.value = '';
+      suggest();
+    };
+    $('#exForm').onsubmit = (e) => { e.preventDefault(); add(input.value); };
+    input.oninput = suggest;
+    $('#exDone').onclick = () => { if (input.value.trim()) add(input.value); closeSheet(); };
+    suggest();
+    input.focus();
+  }, { full: true });
 }
 
 function exerciseMenu(plan, idx) {
   const ex = plan.exercises[idx];
   openSheet(`
-    <h2>${esc(ex.name)}</h2>
-    <label class="lbl">Name</label>
-    <input class="field" id="exRename" value="${esc(ex.name)}" autocomplete="off">
-    <label class="lbl">Notiz (z. B. Sitzposition, Einstellung, Griff)</label>
+    ${sheetHead(esc(ex.name))}
+    <label class="lbl" for="exRename">Name</label>
+    <input class="field" id="exRename" value="${esc(ex.name)}" autocomplete="off" autocapitalize="sentences">
+    <label class="lbl" for="exNote">Notiz (z. B. Sitzposition, Einstellung, Griff)</label>
     <textarea class="field" id="exNote" rows="3" placeholder="z. B. Sitz Stufe 4, Lehne 2. Loch">${esc(getNote(ex.name))}</textarea>
-    <div style="height:16px"></div>
+    <div class="gap-l"></div>
     <button class="btn primary" id="exSave">Speichern</button>
     <button class="btn" id="exProg">${ico('progress')}Fortschritt ansehen</button>
     <button class="btn danger" id="exDel">Aus Plan entfernen</button>
   `, () => {
     $('#exSave').onclick = () => {
       const name = $('#exRename').value.trim();
-      if (!name) return;
+      if (!name) { $('#exRename').focus(); return; }
       const oldName = ex.name;
       if (name !== oldName) {
         // Verlauf mit umbenennen, damit Fortschritt und „Letztes Mal“ erhalten bleiben.
@@ -732,7 +997,7 @@ function exerciseMenu(plan, idx) {
       plan.exercises.splice(idx, 1);
       touch(plan); save(); closeSheet(); render();
     };
-  });
+  }, { full: true });
 }
 
 /* =========================================================
@@ -761,57 +1026,6 @@ function editWorkout(w) {
   draft.entries.forEach((e) => { e.note = e.note || ''; });
   saveDraft();
   go('workout');
-}
-
-/* Pausen-Timer */
-const rest = { end: 0, total: 0, timer: null, overUntil: 0 };
-
-function startRest() {
-  rest.total = data.settings.restSec || 90;
-  rest.end = Date.now() + rest.total * 1000;
-  rest.overUntil = 0;
-  clearInterval(rest.timer);
-  rest.timer = setInterval(tickRest, 250);
-  tickRest();
-}
-function stopRest() { rest.end = 0; rest.overUntil = 0; clearInterval(rest.timer); drawRest(); }
-function tickRest() {
-  if (!rest.end) return;
-  const left = (rest.end - Date.now()) / 1000;
-  if (left <= 0 && !rest.overUntil) { rest.overUntil = Date.now() + 5000; beep(); }
-  if (rest.overUntil && Date.now() > rest.overUntil) { stopRest(); return; }
-  drawRest();
-}
-function restHtml() {
-  if (!rest.end) return '';
-  const left = Math.max(0, (rest.end - Date.now()) / 1000);
-  const over = left <= 0;
-  return `<div class="rest ${over ? 'over' : ''}" id="rest">
-    <div class="t">${over ? 'Pause beendet' : fmtTime(Math.ceil(left))}${over ? '' : '<small>Pause</small>'}</div>
-    ${over ? '' : '<button data-rest="plus">+30</button><button data-rest="skip">Skip</button>'}
-    <div class="bar" style="width:${over ? 100 : (1 - left / rest.total) * 100}%"></div>
-  </div>`;
-}
-/* Bei offenem Zahlenfeld läuft die Pause klein in dessen Kopfzeile mit,
-   damit sie kein Eingabefeld verdeckt. */
-function restBadge() {
-  if (!rest.end || current().view !== 'workout') return '';
-  const left = Math.max(0, (rest.end - Date.now()) / 1000);
-  return left > 0 ? `${ico('timer')}${fmtTime(Math.ceil(left))}` : `${ico('check')}Pause beendet`;
-}
-function drawRest() {
-  const badge = $('#kpRest');
-  if (badge) {
-    badge.innerHTML = restBadge();
-    badge.classList.toggle('over', !!rest.overUntil);
-  }
-  const holder = $('#restHolder');
-  if (!holder) return;
-  holder.innerHTML = restHtml();
-  $$('[data-rest]', holder).forEach((b) => b.onclick = () => {
-    if (b.dataset.rest === 'plus') { rest.end += 30000; rest.total += 30; tickRest(); }
-    else stopRest();
-  });
 }
 
 /* Trainings-Timer: startet mit dem Training, läuft auch bei geschlossener App weiter
@@ -872,14 +1086,18 @@ setInterval(() => {
 function workoutFields() {
   const fields = [];
   draft.entries.forEach((e, ei) => e.sets.forEach((s, si) => {
-    const base = { ei, si, entry: e };
+    const base = {
+      ei, si, entry: e,
+      save: () => ({ w: s.w, r: s.r, gw: !!s.gw, gr: !!s.gr }),
+      load: (x) => { s.w = x.w; s.r = x.r; if (x.gw) s.gw = true; else delete s.gw; if (x.gr) s.gr = true; else delete s.gr; },
+    };
     fields.push({
       ...base, key: `${ei}:${si}:w`, label: 'Gewicht', unit: 'kg', decimals: 2, step: 2.5,
       get: () => s.w, set: (v) => { s.w = v; delete s.gw; }, isGhost: () => !!s.gw,
       fallback: () => (si > 0 ? e.sets[si - 1].w : 0),
     });
     fields.push({
-      ...base, key: `${ei}:${si}:r`, label: 'Wiederholungen', unit: 'Wdh.', int: true, decimals: 0, step: 1,
+      ...base, key: `${ei}:${si}:r`, label: 'Wdh.', unit: '', int: true, decimals: 0, step: 1,
       get: () => s.r, set: (v) => { s.r = v == null ? null : Math.round(v); delete s.gr; }, isGhost: () => !!s.gr,
       fallback: () => (si > 0 ? e.sets[si - 1].r : 0),
     });
@@ -891,33 +1109,64 @@ function valHtml(v, unit, decimals) {
   return v == null ? `<span class="u">${unit}</span>` : `${fmtNum(v, decimals)}<span class="u">${unit}</span>`;
 }
 
-/** Hält ein Element sichtbar zwischen Kopfbereich und Zahlenfeld. Muss gescrollt
-    werden, rückt die Zeile ins obere Drittel – so folgen die nächsten Sätze ohne
-    erneutes Scrollen. Kurze, gleichmäßige Bewegung statt Nachrutschen. */
-function keepVisible(el) {
+/* Entwurf mit kurzer Verzögerung sichern – nicht bei jedem Tastendruck einzeln.
+   Beim Verlassen der App wird sofort gespeichert. */
+let draftTimer = null;
+function saveDraftSoon() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => { draftTimer = null; saveDraft(); }, 250);
+}
+function flushDraft() {
+  if (!draftTimer) return;
+  clearTimeout(draftTimer);
+  draftTimer = null;
+  saveDraft();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushDraft(); });
+window.addEventListener('pagehide', flushDraft);
+
+/* Weiches Scrollen im Inhalt – kurz und gleichmäßig, passend zum Einfahren des Zahlenfelds.
+   Wischt man selbst, endet die Bewegung sofort. */
+let scrollAnim = 0;
+function scrollMainBy(dy, ms = 260) {
   const main = $('#view');
-  const kp = $('#keypad');
-  const r = el.getBoundingClientRect();
-  const m = main.getBoundingClientRect();
-  const top = m.top + 8;
-  const bottom = (kp.hidden ? m.bottom : Math.min(m.bottom, kp.getBoundingClientRect().top)) - 12;
-  let dy = 0;
-  if (r.bottom > bottom) dy = r.top - (top + (bottom - top) * 0.22);
-  else if (r.top < top) dy = r.top - top - 8;
-  if (Math.abs(dy) < 1) return;
   const from = main.scrollTop;
   const to = Math.max(0, Math.min(main.scrollHeight - main.clientHeight, from + dy));
+  if (Math.abs(to - from) < 1) return;
+  scrollAnim += 1;
+  const id = scrollAnim;
+  if (reducedMotion()) { main.scrollTop = to; return; }
   const t0 = performance.now();
   const step = (t) => {
-    const k = Math.min(1, (t - t0) / 170);
+    if (id !== scrollAnim) return;
+    const k = Math.min(1, Math.max(0, (t - t0) / ms));
     main.scrollTop = from + (to - from) * (1 - Math.pow(1 - k, 3));
     if (k < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
+$('#view').addEventListener('touchstart', () => { scrollAnim += 1; }, { passive: true });
 
-/* Satz, in dem zuletzt ein Wert eingetippt wurde – wird er verlassen, startet die Pause. */
-let woTouched = null;
+/** Aktive Satz-Zeile zwischen Kopfbereich und Zahlenfeld sichtbar halten.
+    Ist sie schon sichtbar, bewegt sich nichts. Muss gescrollt werden, rückt die
+    Übung so nach oben, dass möglichst alle ihre Sätze zu sehen sind – beim
+    Weitertippen innerhalb der Übung bleibt die Liste dann stehen. */
+function revealRow(row) {
+  const main = $('#view');
+  const m = main.getBoundingClientRect();
+  const top = m.top + 6;
+  const kpH = Keypad.height();
+  const bottom = (kpH ? Math.min(m.bottom, document.body.getBoundingClientRect().bottom - kpH) : m.bottom) - 10;
+  const r = row.getBoundingClientRect();
+  if (r.top >= top && r.bottom <= bottom) return;
+  const head = row.parentElement && $('.sets-head', row.parentElement);
+  const anchor = head ? head.getBoundingClientRect().top : r.top;
+  const dy = r.bottom - anchor <= bottom - top ? anchor - top : r.bottom - bottom;
+  scrollMainBy(dy);
+}
+
+/* Öffnet (auch nach einem Neuaufbau der Ansicht) das Zahlenfeld für ein Feld. */
+let woOpenField = null;
 
 function viewWorkout() {
   if (!draft) { nav.stack.pop(); render(); return; }
@@ -932,7 +1181,7 @@ function viewWorkout() {
     const perm = getNote(e.name);
     const rows = e.sets.map((s, si) => `
       <div class="set-row ${isLogged(s) ? 'logged' : ''}" data-row="${ei}:${si}">
-        <button class="set-nr" data-setmenu="${ei}:${si}" aria-label="Satz ${si + 1}">${si + 1}</button>
+        <button class="set-nr" data-setmenu="${ei}:${si}" aria-label="Satz ${si + 1}: Optionen"><span>${si + 1}</span></button>
         <button class="val ${s.gw ? 'ghost' : ''} ${s.w == null ? 'empty-val' : ''}" data-f="${ei}:${si}:w">${valHtml(s.w, 'kg', 2)}</button>
         <button class="val ${s.gr ? 'ghost' : ''} ${s.r == null ? 'empty-val' : ''}" data-f="${ei}:${si}:r">${valHtml(s.r, 'Wdh', 0)}</button>
       </div>`).join('');
@@ -955,17 +1204,15 @@ function viewWorkout() {
   }).join('');
 
   v.innerHTML = `
-    <div class="wo-head">
-      <input type="date" class="field" id="wDate" value="${draft.date}" aria-label="Datum">
-    </div>
+    <label class="date-chip">${ico('calendar')}<span>${fmtDateLong(draft.date)}</span><input type="date" id="wDate" value="${draft.date}" aria-label="Datum ändern"></label>
     ${draft.entries.length > 1 ? `<div class="ex-strip">${chips}</div>` : ''}
     ${cards || '<div class="panel hint">Dieser Plan hat noch keine Übungen.</div>'}
-    <p class="hint small center wo-legend">Graue Werte sind Vorschläge vom letzten Training. Gespeichert wird ein Satz, sobald du einen Wert einträgst.</p>
+    <p class="hint small center wo-legend">Graue Werte sind Vorschläge vom letzten Training. Ein Satz zählt, sobald du einen Wert einträgst – oder über die Satznummer den Vorschlag übernimmst.</p>
     <button class="btn dashed" id="wAddEx">${ico('plus')}Übung hinzufügen</button>
-    <div style="height:18px"></div>
-    ${draft.isNew ? '<button class="btn danger" id="wDiscard">Training verwerfen</button>' : '<button class="btn danger" id="wDelete">Training löschen</button>'}
-    <div id="restHolder"></div>
-    <div class="wo-footer">
+    <div class="gap"></div>
+    ${draft.isNew ? '<button class="btn danger" id="wDiscard">Training verwerfen</button>' : '<button class="btn danger" id="wDelete">Training löschen</button>'}`;
+
+  $('#footHolder').innerHTML = `<div class="wo-footer">
       <div class="clock"><span id="woCount"></span><small>Sätze</small></div>
       <button class="btn primary" id="wSave">${draft.isNew ? 'Training beenden' : 'Speichern'}</button>
     </div>`;
@@ -983,10 +1230,10 @@ function viewWorkout() {
         chip.classList.toggle('full', n > 0 && n >= e.sets.length);
       }
     });
-    $('#woCount', v).textContent = `${logged}/${total}`;
+    const count = $('#woCount');
+    if (count) count.textContent = `${logged}/${total}`;
   };
   updateCounts();
-  drawRest();
   drawTimer();
 
   const fields = workoutFields();
@@ -995,7 +1242,7 @@ function viewWorkout() {
     const el = key && $(`[data-f="${key}"]`, v);
     if (el) {
       el.classList.add('active');
-      requestAnimationFrame(() => keepVisible(el.closest('.set-row') || el));
+      revealRow(el.closest('.set-row') || el);
     }
   };
   const refreshField = (f) => {
@@ -1012,26 +1259,20 @@ function viewWorkout() {
   };
 
   const openKeypad = (key) => {
-    unlockAudio();
     if (Keypad.isOpen() && Keypad.owner() === 'workout') { Keypad.update(fields); if (Keypad.focusKey(key)) return; }
     const start = fields.findIndex((f) => f.key === key);
     Keypad.open({
       owner: 'workout',
       fields,
-      title: (f) => `${esc(f.entry.name)} · Satz ${f.si + 1} · <b>${f.label}</b>`,
+      group: (f) => `${f.ei}:${f.si}`,   // Gewicht und Wdh. eines Satzes stehen nebeneinander
+      title: (f) => `<b>${esc(f.entry.name)}</b> · Satz ${f.si + 1}`,
       okLabel: 'Fertig',
       onFocus: (f) => highlight(f.key),
-      onChange: (f) => { woTouched = `${f.ei}:${f.si}`; saveDraft(); refreshField(f); },
-      // Satz fertig eingetragen (zum nächsten Satz oder „Fertig“) → Pause starten
-      onLeave: (f, next) => {
-        if (woTouched !== `${f.ei}:${f.si}`) return;
-        if (next && next.ei === f.ei && next.si === f.si) return;
-        woTouched = null;
-        if (isLogged(f.entry.sets[f.si])) startRest();
-      },
-      onClose: () => highlight(null),
+      onChange: (f) => { saveDraftSoon(); refreshField(f); },
+      onClose: () => { flushDraft(); highlight(null); },
     }, Math.max(0, start));
   };
+  woOpenField = openKeypad;
 
   if (Keypad.isOpen() && Keypad.owner() === 'workout') {
     Keypad.update(fields);
@@ -1040,7 +1281,10 @@ function viewWorkout() {
 
   $$('[data-f]', v).forEach((b) => b.onclick = () => openKeypad(b.dataset.f));
 
-  $$('[data-jump]', v).forEach((b) => b.onclick = () => $(`#ex-${b.dataset.jump}`).scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  $$('[data-jump]', v).forEach((b) => b.onclick = () => {
+    const card = $(`#ex-${b.dataset.jump}`);
+    if (card) scrollMainBy(card.getBoundingClientRect().top - v.getBoundingClientRect().top - 10, 320);
+  });
 
   $$('[data-addset]', v).forEach((b) => b.onclick = () => {
     const ei = Number(b.dataset.addset);
@@ -1049,8 +1293,8 @@ function viewWorkout() {
     // Neuer Satz übernimmt die Werte des vorigen als graue Vorschläge
     sets.push(prev ? { w: prev.w, r: prev.r, ...(prev.w != null ? { gw: true } : {}), ...(prev.r != null ? { gr: true } : {}) } : { w: null, r: null });
     saveDraft();
-    Keypad.close();
     render();
+    if (woOpenField) woOpenField(`${ei}:${sets.length - 1}:w`);   // gleich weiter eintragen
   });
 
   $$('[data-setmenu]', v).forEach((b) => b.onclick = () => {
@@ -1059,14 +1303,12 @@ function viewWorkout() {
     const s = e.sets[si];
     const ghosts = (s.gw && s.w != null) || (s.gr && s.r != null);
     openSheet(`
-      <h2>${esc(e.name)} · Satz ${si + 1}</h2>
-      ${ghosts ? `<button class="btn" id="setTake">${ico('check')}Vorschlag übernehmen (${s.w != null ? fmtNum(s.w, 2) + ' kg' : '–'} × ${s.r ?? '–'})</button>` : ''}
+      ${sheetHead(`${esc(e.name)} · Satz ${si + 1}`)}
+      ${ghosts ? `<button class="btn primary" id="setTake">${ico('check')}Vorschlag übernehmen (${s.w != null ? fmtNum(s.w, 2) + ' kg' : '–'} × ${s.r ?? '–'})</button>` : ''}
       <button class="btn" id="setDup">${ico('dup')}Satz duplizieren</button>
-      <button class="btn" id="setDel" style="color:var(--red)">${ico('trash')}Satz löschen</button>
-      <button class="btn danger" id="setCancel" style="color:var(--muted)">Abbrechen</button>
+      <button class="btn danger" id="setDel">${ico('trash')}Satz löschen</button>
     `, () => {
-      $('#setCancel').onclick = closeSheet;
-      if ($('#setTake')) $('#setTake').onclick = () => { delete s.gw; delete s.gr; saveDraft(); closeSheet(); render(); startRest(); };
+      if ($('#setTake')) $('#setTake').onclick = () => { delete s.gw; delete s.gr; saveDraft(); closeSheet(); render(); };
       $('#setDup').onclick = () => { e.sets.splice(si + 1, 0, { w: s.w, r: s.r }); saveDraft(); closeSheet(); render(); };
       $('#setDel').onclick = () => { e.sets.splice(si, 1); saveDraft(); closeSheet(); render(); };
     });
@@ -1078,14 +1320,14 @@ function viewWorkout() {
     const ei = Number(b.dataset.exmenu);
     const e = draft.entries[ei];
     openSheet(`
-      <h2>${esc(e.name)}</h2>
+      ${sheetHead(esc(e.name))}
       <button class="btn" id="mNote">${ico('note')}Notizen</button>
       <button class="btn" id="mProg">${ico('progress')}Fortschritt</button>
       <button class="btn danger" id="mDel">Aus diesem Training entfernen</button>
-      <p class="hint small center">Die Reihenfolge änderst du oben rechts.</p>
+      <p class="hint small center" style="margin-top:10px">Die Reihenfolge änderst du oben rechts.</p>
     `, () => {
       $('#mNote').onclick = () => notesSheet(e);
-      $('#mProg').onclick = () => { closeSheet(); progressState.name = e.name; nav.tab = 'progress'; nav.stack = []; render(); };
+      $('#mProg').onclick = () => { closeSheet(); progressState.name = e.name; switchTab('progress'); };
       $('#mDel').onclick = () => {
         if (!confirm(`„${e.name}“ aus diesem Training entfernen?`)) return;
         draft.entries.splice(ei, 1); saveDraft(); closeSheet(); render();
@@ -1099,6 +1341,7 @@ function viewWorkout() {
     if (!e.target.value) return;
     draft.date = e.target.value;
     saveDraft();
+    render();   // „Letztes Mal“ bezieht sich auf das Datum
   };
 
   $('#wAddEx').onclick = () => addExerciseSheet((name) => {
@@ -1110,17 +1353,18 @@ function viewWorkout() {
     }
     draft.entries.push(newEntry(ex, draft.date));
     saveDraft(); render();
-  });
+  }, draft.entries.map((e) => e.name));
 
   $('#wSave').onclick = () => { Keypad.close(); finishWorkout(); };
   if ($('#wDiscard')) $('#wDiscard').onclick = () => {
     if (!confirm('Training verwerfen? Die Eingaben gehen verloren.')) return;
-    draft = null; saveDraft(); stopRest(); Keypad.close(); back();
+    Keypad.close(); draft = null; saveDraft(); back();
   };
   if ($('#wDelete')) $('#wDelete').onclick = () => {
     if (!confirm('Dieses Training endgültig löschen?')) return;
+    Keypad.close();
     removeRec('workouts', draft.id);
-    save(); draft = null; saveDraft(); Keypad.close(); back();
+    save(); draft = null; saveDraft(); back();
   };
 }
 
@@ -1137,17 +1381,17 @@ function workoutReorder() {
       }
     }
     render();
-  }, `<label class="row" style="margin-top:6px"><input type="checkbox" id="applyPlan" style="width:22px;height:22px;accent-color:var(--accent)"> <span>Auch im Plan dauerhaft so speichern</span></label>`);
+  }, '<label class="check-row"><input type="checkbox" id="applyPlan"><span>Auch im Plan dauerhaft so speichern</span></label>');
 }
 
 function notesSheet(entry) {
   openSheet(`
-    <h2>${ico('note')}${esc(entry.name)}</h2>
-    <label class="lbl">Dauerhafte Notiz – bleibt bei jedem Training stehen<br><span class="hint">z. B. Sitzposition, Einstellung, Griffbreite</span></label>
-    <textarea class="field" id="nPerm" rows="3" placeholder="z. B. Sitz Stufe 4, Lehne 2. Loch">${esc(getNote(entry.name))}</textarea>
-    <label class="lbl">Notiz für heute<br><span class="hint">z. B. Muskelgefühl, Tagesform – erscheint beim nächsten Mal unter „Letztes Mal“</span></label>
+    ${sheetHead(esc(entry.name), 'note')}
+    <label class="lbl" for="nPerm">Dauerhafte Notiz – bleibt bei jedem Training stehen</label>
+    <textarea class="field" id="nPerm" rows="3" placeholder="z. B. Sitz Stufe 4, Lehne 2. Loch, Griff schulterbreit">${esc(getNote(entry.name))}</textarea>
+    <label class="lbl" for="nToday">Notiz für heute – erscheint beim nächsten Mal unter „Letztes Mal“</label>
     <textarea class="field" id="nToday" rows="3" placeholder="z. B. Brust gut gespürt, Schulter zwickt">${esc(entry.note || '')}</textarea>
-    <div style="height:16px"></div>
+    <div class="gap-l"></div>
     <button class="btn primary" id="nSave">Speichern</button>
   `, () => {
     $('#nSave').onclick = () => {
@@ -1155,19 +1399,20 @@ function notesSheet(entry) {
       entry.note = $('#nToday').value.trim();
       save(); saveDraft(); closeSheet(); render();
     };
-  });
+  }, { full: true });
 }
 
 /** mode: undefined (ggf. nachfragen) · 'logged' (nur eingetragene Sätze) · 'all' (Vorschläge mitspeichern) */
 function finishWorkout(mode) {
+  flushDraft();
   const pending = draft.entries.reduce((a, e) => a + e.sets.filter((s) => !isLogged(s) && s.r != null && s.r > 0).length, 0);
   if (!mode && pending) {
     openSheet(`
-      <h2>${ico('info')}${pending === 1 ? '1 Satz' : `${pending} Sätze`} nicht eingetragen</h2>
-      <p class="hint" style="margin-top:0">${pending === 1 ? 'Dieser Satz zeigt' : 'Diese Sätze zeigen'} nur die grauen Vorschlagswerte vom letzten Training.</p>
+      ${sheetHead(`${pending === 1 ? '1 Satz' : `${pending} Sätze`} nicht eingetragen`, 'info')}
+      <p class="hint">${pending === 1 ? 'Dieser Satz zeigt' : 'Diese Sätze zeigen'} nur die grauen Vorschlagswerte vom letzten Training.</p>
       <button class="btn primary" id="finLogged">Nur eingetragene Sätze speichern</button>
       <button class="btn" id="finAll">Vorschlagswerte mitspeichern</button>
-      <button class="btn danger" id="finBack" style="color:var(--muted)">Weiter trainieren</button>
+      <button class="btn quiet" id="finBack">Weiter trainieren</button>
     `, () => {
       $('#finLogged').onclick = () => { closeSheet(); finishWorkout('logged'); };
       $('#finAll').onclick = () => { closeSheet(); finishWorkout('all'); };
@@ -1183,7 +1428,7 @@ function finishWorkout(mode) {
       ...(e.note ? { note: e.note } : {}),
     }))
     .filter((e) => e.sets.length);
-  if (!entries.length) { alert('Trage mindestens einen Satz mit Wiederholungen ein.'); return; }
+  if (!entries.length) { toast('Trage mindestens einen Satz mit Wiederholungen ein'); return; }
 
   // Neue Rekorde (Gewicht) ermitteln
   const prs = [];
@@ -1194,7 +1439,7 @@ function finishWorkout(mode) {
       if (w.id === draft.id) return;
       w.entries.forEach((x) => { if (norm(x.name) === norm(e.name)) x.sets.forEach((s) => { prev = Math.max(prev ?? 0, s.w); }); });
     });
-    if (prev != null && max > prev) prs.push({ name: e.name, max, prev });
+    if (prev != null && prev > 0 && max > prev) prs.push({ name: e.name, max, prev });
   }
 
   const existing = data.workouts.find((w) => w.id === draft.id);
@@ -1209,19 +1454,20 @@ function finishWorkout(mode) {
   save();
 
   const isNew = draft.isNew;
-  draft = null; saveDraft(); stopRest(); Keypad.close();
+  Keypad.close();
+  draft = null; saveDraft();
   back();
 
   const sets = entries.reduce((a, e) => a + e.sets.length, 0);
   const vol = entries.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.w * s.r, 0), 0);
   openSheet(`<div class="ko">
-    <h2>${ico('check')}${isNew ? 'Training abgeschlossen' : 'Training aktualisiert'}</h2>
-    <p class="hint" style="margin:0 0 14px">${fmtDateLong(workout.date)} · ${esc(planName(workout.planId))}</p>
+    ${sheetHead(isNew ? 'Training abgeschlossen' : 'Training aktualisiert', 'check')}
+    <p class="hint">${fmtDateLong(workout.date)} · ${esc(planName(workout.planId))}</p>
     <div class="stats">
-      <div class="stat"><div class="v">${sets}</div><div class="k">Sätze</div></div>
-      <div class="stat"><div class="v">${fmtNum(vol, 0)} kg</div><div class="k">Volumen</div></div>
-      ${workout.dur ? `<div class="stat"><div class="v">${fmtDur(workout.dur)}</div><div class="k">Trainingszeit</div></div>` : ''}
-      <div class="stat"><div class="v">${entries.length}</div><div class="k">Übung${entries.length === 1 ? '' : 'en'}</div></div>
+      ${statCard('Sätze', sets)}
+      ${statCard('Volumen', `${fmtNum(vol, 0)} kg`)}
+      ${workout.dur ? statCard('Trainingszeit', fmtDur(workout.dur)) : ''}
+      ${statCard(entries.length === 1 ? 'Übung' : 'Übungen', entries.length)}
     </div>
     ${prs.map((p) => `<div class="pr">${ico('trophy')}<div><b>Neuer Bestwert: ${esc(p.name)}</b><br><span class="small num">${fmtNum(p.max, 2)} kg (vorher ${fmtNum(p.prev, 2)} kg, +${fmtNum(((p.max - p.prev) / p.prev) * 100, 1)} %)</span></div></div>`).join('')}
     <button class="btn primary" id="koOk" style="margin-top:8px">Schließen</button>
@@ -1282,7 +1528,7 @@ function viewCalendar() {
 function daySheet(ds) {
   const ws = data.workouts.filter((w) => w.date === ds);
   openSheet(`
-    <h2>${fmtDateLong(ds)}</h2>
+    ${sheetHead(fmtDateLong(ds), 'calendar')}
     ${ws.length ? ws.map((w) => `
       <button class="row-item" data-w="${w.id}">
         <div class="stripe" style="background:${planColor(w.planId)}"></div>
@@ -1496,7 +1742,7 @@ function viewExerciseProgress(v) {
       ${diffCard('Steigerung', points.length > 1 ? +(lastV - first).toFixed(1) : null, 'kg')}
     </div>
     <span class="label">Verlauf</span>
-    ${[...points].reverse().map((p) => `<div class="row-item"><div class="grow"><div class="t">${fmtDateLong(p.date)}</div><div class="s">${esc(p.label)}</div>${notesOf[p.date] ? `<div class="s">Notiz: ${esc(notesOf[p.date])}</div>` : ''}</div><b class="num" style="font-size:16px">${fmtNum(p.y)} kg</b></div>`).join('')}`;
+    ${[...points].reverse().map((p) => `<div class="row-item"><div class="grow"><div class="t">${fmtDateLong(p.date)}</div><div class="s">${esc(p.label)}</div>${notesOf[p.date] ? `<div class="s">Notiz: ${esc(notesOf[p.date])}</div>` : ''}</div><b>${withUnit(fmtNum(p.y) + ' kg')}</b></div>`).join('')}`;
 
   lineChart($('#chart'), points, color, 'kg');
   if (progressState.metric === 'orm') $('#chart').insertAdjacentHTML('beforeend', '<p class="hint small center" style="margin:6px 0 0">1RM = geschätztes Maximalgewicht für 1 Wiederholung</p>');
@@ -1530,9 +1776,9 @@ function weightEntry(date) {
     onDraw: (root) => bindDateField(root, tmp),
     okLabel: 'Speichern',
     onCancel: () => {},
+    validate: () => (tmp.kg == null || tmp.kg < 20 || tmp.kg > 400 ? 'Bitte ein gültiges Gewicht eingeben' : ''),
     onDone: () => {
       const d = tmp.date;
-      if (tmp.kg == null || tmp.kg < 20 || tmp.kg > 400) { toast('Bitte gültiges Gewicht eingeben'); return; }
       const id = 'w-' + d;
       const rec = data.weights.find((w) => w.id === id);
       if (rec) { rec.kg = tmp.kg; touch(rec); }
@@ -1568,7 +1814,7 @@ function viewWeight(v) {
         ${statCard('Maximum', ys.length ? `${fmtNum(Math.max(...ys))} kg` : '–')}
       </div>
       <span class="label">Einträge</span>
-      ${[...all].reverse().slice(0, 60).map((w) => `<button class="row-item" data-wid="${w.id}"><div class="grow t">${fmtDateLong(w.date)}</div><b class="num" style="font-size:16px">${fmtNum(w.kg)} kg</b><span class="chev">${ico('chevr')}</span></button>`).join('')}
+      ${[...all].reverse().slice(0, 60).map((w) => `<button class="row-item" data-wid="${w.id}"><div class="grow t">${fmtDateLong(w.date)}</div><b>${withUnit(fmtNum(w.kg) + ' kg')}</b><span class="chev">${ico('chevr')}</span></button>`).join('')}
     ` : `<div class="empty"><div class="big">${ico('scale')}</div><p>Trag dein Gewicht regelmäßig ein, um den Verlauf zu sehen.</p></div>`}`;
 
   if (all.length) lineChart($('#wChart'), shown.map((w) => ({ date: w.date, y: w.kg })), 'var(--accent)', 'kg');
@@ -1576,8 +1822,8 @@ function viewWeight(v) {
   $$('[data-range]', v).forEach((b) => b.onclick = () => { bodyState.range = Number(b.dataset.range); render(); });
   $$('[data-wid]', v).forEach((b) => b.onclick = () => {
     const w = data.weights.find((x) => x.id === b.dataset.wid);
-    openSheet(`<h2>${fmtDateLong(w.date)}</h2><p class="num" style="font-size:30px;font-weight:500;margin:6px 0 16px">${fmtNum(w.kg)} kg</p>
-      <button class="btn" id="wEdit">Ändern</button><button class="btn danger" id="wDel">Löschen</button>`, () => {
+    openSheet(`${sheetHead(fmtDateLong(w.date), 'scale')}<p class="num readout" style="margin:0 2px 16px">${withUnit(fmtNum(w.kg) + ' kg')}</p>
+      <button class="btn" id="wEdit">${ico('edit')}Ändern</button><button class="btn danger" id="wDel">${ico('trash')}Löschen</button>`, () => {
       $('#wEdit').onclick = () => { closeSheet(); weightEntry(w.date); };
       $('#wDel').onclick = () => { removeRec('weights', w.id); save(); closeSheet(); render(); };
     });
@@ -1603,30 +1849,35 @@ function viewProfile() {
 
   let account;
   if (!Sync.configured()) {
-    account = `<p style="margin-top:0">Mit einem Konto werden deine Daten automatisch zwischen deinen Geräten synchronisiert und sind gesichert.</p>
+    account = `<p>Mit einem Konto werden deine Daten automatisch zwischen deinen Geräten synchronisiert und sind gesichert.</p>
       <p class="hint">Die Anmeldung ist noch nicht eingerichtet. Trage in <b>docs/config.js</b> die Daten deines kostenlosen Supabase-Projekts ein – die Schritt-für-Schritt-Anleitung steht in der README. Bis dahin werden alle Daten nur auf diesem Gerät gespeichert.</p>`;
   } else if (!u) {
-    account = `<p style="margin-top:0">Melde dich an, damit dein Stand auf allen Geräten gleich ist und gesichert wird.</p>
+    account = `<p style="margin-bottom:14px">Melde dich an, damit dein Stand auf allen Geräten gleich ist und gesichert wird.</p>
       <form id="loginForm" autocomplete="on">
-        <input class="field" type="email" id="email" placeholder="E-Mail" autocomplete="username" inputmode="email" autocapitalize="off" required>
-        <div style="height:10px"></div>
+        <input class="field" type="email" id="email" placeholder="E-Mail" autocomplete="username" inputmode="email" autocapitalize="off" autocorrect="off" required>
+        <div class="gap"></div>
         <input class="field" type="password" id="pw" placeholder="Passwort (mind. 6 Zeichen)" autocomplete="current-password" required minlength="6">
-        <div style="height:14px"></div>
+        <div class="gap"></div>
         <button class="btn primary" type="submit" id="loginBtn">Anmelden</button>
       </form>
-      <button class="btn" id="signupBtn" style="margin-top:14px">Neues Konto erstellen</button>
-      <button class="btn danger" id="forgotBtn" style="color:var(--muted);font-size:18px">Passwort vergessen?</button>
+      <button class="btn" id="signupBtn" style="margin-top:10px">Neues Konto erstellen</button>
+      <button class="btn quiet" id="forgotBtn">Passwort vergessen?</button>
       <p class="hint small center" id="authMsg"></p>`;
   } else {
-    account = `<div class="row"><span class="emoji-big">${ico('profile')}</span><div class="grow"><div class="t">${esc(u.email)}</div><div class="hint small" id="syncStatus">${syncStatusHtml()}</div></div></div>
-      <div style="height:14px"></div>
+    account = `<div class="account-row"><span class="emoji-big">${ico('profile')}</span><div class="grow"><div class="t">${esc(u.email)}</div><div class="hint small" id="syncStatus">${syncStatusHtml()}</div></div></div>
       <div class="btn-row"><button class="btn blue small" id="syncBtn">${ico('refresh')}Synchronisieren</button><button class="btn small" id="logoutBtn">${ico('logout')}Abmelden</button></div>`;
   }
-  if (Sync.configured()) account += `<button class="btn danger" id="diagBtn" style="color:var(--accent);margin-top:6px">${ico('search')}Verbindung prüfen</button>`;
+  if (Sync.configured()) account += `<button class="btn link" id="diagBtn" style="margin-top:6px">${ico('search')}Verbindung prüfen</button>`;
 
   v.innerHTML = `
-    <span class="label blue">Konto & Sync</span>
+    <span class="label">Konto & Sync</span>
     <div class="panel">${account}</div>
+
+    <span class="label">Darstellung</span>
+    <div class="seg">${[['system', 'Wie iPhone'], ['light', 'Hell'], ['dark', 'Dunkel']].map(([k, l]) => `<button data-theme-set="${k}" class="${getTheme() === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+
+    <span class="label">Ernährung</span>
+    <button class="value-btn" id="goalsBtn">${ico('target')}<span>Tagesziele</span><b>${withUnit(fmtNum(st.kcalGoal, 0) + ' kcal')}</b></button>
 
     <span class="label">Daten</span>
     <button class="btn" id="xlsxBtn">${ico('table')}Excel-Export (.xlsx)</button>
@@ -1634,16 +1885,9 @@ function viewProfile() {
     <button class="btn" id="importBtn">${ico('upload')}Sicherung importieren</button>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
 
-    <span class="label">Einstellungen</span>
-    <div class="panel">
-      <div class="lbl" style="margin-top:0">Darstellung</div>
-      <div class="seg">${[['system', 'Wie iPhone'], ['light', 'Hell'], ['dark', 'Dunkel']].map(([k, l]) => `<button data-theme-set="${k}" class="${getTheme() === k ? 'on' : ''}">${l}</button>`).join('')}</div>
-      <div class="lbl">Pause zwischen den Sätzen</div>
-      <div class="seg" style="margin-bottom:6px">${[60, 90, 120, 180].map((s) => `<button data-rest-sec="${s}" class="${st.restSec === s ? 'on' : ''}">${fmtTime(s)}</button>`).join('')}</div>
-      <label class="row" style="margin:12px 0"><input type="checkbox" id="soundChk" ${st.sound ? 'checked' : ''} style="width:22px;height:22px;accent-color:var(--accent)"><span>Ton am Ende der Pause</span></label>
-      <button class="btn small" id="goalsBtn">${ico('target')}Ernährungsziele: <span class="num">${fmtNum(st.kcalGoal, 0)} kcal</span></button>
-    </div>
-    <p class="hint center small">Fightclub · Version ${APP_VERSION} · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>
+    <span class="label">App</span>
+    <button class="btn" id="updateBtn">${ico('refresh')}Nach Update suchen</button>
+    <p class="hint center small" style="margin-top:14px">Fightclub · Version ${APP_VERSION} · Daten ${Sync.user() ? 'werden synchronisiert' : 'liegen nur auf diesem Gerät'}</p>
     <p class="hint center small num" id="screenInfo">${screenInfo()}</p>`;
 
   if ($('#loginForm')) {
@@ -1653,7 +1897,7 @@ function viewProfile() {
       e.preventDefault();
       const { email, pw } = creds();
       $('#loginBtn').disabled = true; msg('Anmelden …');
-      try { await Sync.signIn(email, pw); toast('Angemeldet'); render(); scrollTop(); }
+      try { await Sync.signIn(email, pw); blurActive(); toast('Angemeldet'); render(); scrollTop(); }
       catch (err) { msg(err.message); $('#loginBtn').disabled = false; }
     };
     $('#signupBtn').onclick = async () => {
@@ -1662,7 +1906,7 @@ function viewProfile() {
       msg('Konto wird erstellt …');
       try {
         const loggedIn = await Sync.signUp(email, pw);
-        if (loggedIn) { toast('Konto erstellt'); render(); scrollTop(); }
+        if (loggedIn) { blurActive(); toast('Konto erstellt'); render(); scrollTop(); }
         else msg('Fast geschafft! Bestätige den Link in der E-Mail und melde dich dann hier an.');
       } catch (err) { msg(err.message); }
     };
@@ -1684,9 +1928,8 @@ function viewProfile() {
   $('#exportBtn').onclick = exportBackup;
   $('#importBtn').onclick = () => $('#importFile').click();
   $('#importFile').onchange = importBackup;
-  $$('[data-rest-sec]', v).forEach((b) => b.onclick = () => { st.restSec = Number(b.dataset.restSec); touchSettings(); save(); render(); });
-  $('#soundChk').onchange = (e) => { st.sound = e.target.checked; touchSettings(); save(); if (st.sound) { unlockAudio(); beep(); } };
   $('#goalsBtn').onclick = goalsSheet;
+  $('#updateBtn').onclick = checkForUpdate;
   $('#themeBtn').onclick = () => { applyTheme(isDark() ? 'light' : 'dark'); render(); };
   $$('[data-theme-set]', v).forEach((b) => b.onclick = () => { applyTheme(b.dataset.themeSet); render(); });
 }
@@ -1703,14 +1946,14 @@ Sync.onChange(() => {
 });
 
 async function diagnoseSheet() {
-  openSheet(`<h2>${ico('search')}Verbindung</h2><div id="diagList"><p class="hint">Prüfe …</p></div>`);
+  openSheet(`${sheetHead('Verbindung', 'search')}<div id="diagList"><p class="hint">Prüfe …</p></div>`);
   const checks = await Sync.diagnose();
   const list = $('#diagList');
   if (list) list.innerHTML = checks.map((c) => `<div class="row-item diag ${c.ok ? 'ok' : 'bad'}">${ico(c.ok ? 'check' : 'x')}<div class="grow">${esc(c.text)}</div></div>`).join('');
 }
 
 function passwordSheet() {
-  openSheet(`<h2>Neues Passwort</h2>
+  openSheet(`${sheetHead('Neues Passwort')}
     <input class="field" type="password" id="newPw" placeholder="Neues Passwort (mind. 6 Zeichen)" autocomplete="new-password">
     <div style="height:14px"></div>
     <button class="btn primary" id="newPwSave">Speichern</button>
@@ -1721,7 +1964,7 @@ function passwordSheet() {
       try { await Sync.setPassword(pw); closeSheet(); toast('Passwort geändert'); Sync.syncNow(); }
       catch (err) { $('#newPwMsg').textContent = err.message; }
     };
-  });
+  }, { full: true });
 }
 
 /* ---------- Excel ---------- */
@@ -1804,60 +2047,262 @@ function importBackup(e) {
 }
 
 /* =========================================================
-   iPHONE: Gerüst fest verankern
-   Safari lässt sonst die ganze Seite nachfedern, wenn man auf Kopfzeile
-   oder Tab-Leiste wischt – dann wandert die Leiste mit. Und nach dem
-   Schließen der Tastatur bleibt die Ansicht manchmal verschoben.
+   iPHONE: festes Gerüst, sofortige Rückmeldung, Tastatur
    ========================================================= */
 
-const SCROLLABLE = 'main, .sheet-card, .kp-chiprow, .kp-chips, .ex-strip, .scanner, .reorder';
-document.addEventListener('touchmove', (e) => {
-  if (e.touches.length > 1) { e.preventDefault(); return; } // kein Zoomen
-  const box = e.target.closest && e.target.closest(SCROLLABLE);
-  if (!box) e.preventDefault(); // Wischen außerhalb scrollbarer Bereiche bewegt nichts
-}, { passive: false });
+/* Wischen auf Kopfzeile, Leisten oder dem Hintergrund eines Dialogs bewegt nichts (sonst
+   federt in Safari die ganze Seite nach). Das regelt style.css über touch-action: none –
+   der Browser kann dadurch im Inhalt sofort scrollen, ohne erst JavaScript zu fragen.
+   Nur sehr alte Browser brauchen noch diesen Wächter. */
+if (!(window.CSS && CSS.supports && CSS.supports('touch-action', 'none'))) {
+  const SCROLLABLE = 'main, .sheet-card, .keypad, .kp-chiprow, .ex-strip, .search-actions, .scanner';
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1) { e.preventDefault(); return; } // kein Zoomen
+    const box = e.target.closest && e.target.closest(SCROLLABLE);
+    if (!box) e.preventDefault();
+  }, { passive: false });
+}
+document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS-Pinch-Zoom aus
+
+/* Sofortige Rückmeldung beim Antippen (iOS zeigt :active nur verzögert oder gar nicht).
+   In scrollbaren Bereichen einen Moment warten – wird gescrollt, leuchtet nichts auf. */
+(() => {
+  let el = null;
+  let timer = null;
+  let t0 = 0;
+  document.addEventListener('pointerdown', (e) => {
+    if (el) el.classList.remove('pressed');
+    clearTimeout(timer);
+    el = null;
+    const b = e.target.closest && e.target.closest('button');
+    if (!b || b.disabled) return;
+    el = b;
+    t0 = performance.now();
+    if (b.closest('.keypad, .topbar, .tabbar, #footHolder, #timerHolder')) b.classList.add('pressed');
+    else timer = setTimeout(() => { if (el === b) b.classList.add('pressed'); }, 70);
+  }, { capture: true, passive: true });
+  const release = (cancelled) => {
+    if (!el) return;
+    const b = el;
+    el = null;
+    clearTimeout(timer);
+    if (cancelled) { b.classList.remove('pressed'); return; }
+    b.classList.add('pressed');   // auch ganz kurzes Tippen sichtbar machen
+    setTimeout(() => b.classList.remove('pressed'), Math.max(90, 150 - (performance.now() - t0)));
+  };
+  document.addEventListener('pointerup', () => release(false), { capture: true, passive: true });
+  document.addEventListener('pointercancel', () => release(true), { capture: true, passive: true });
+})();
 
 const resetViewport = () => {
   if (window.scrollY || window.scrollX || document.scrollingElement.scrollTop) window.scrollTo(0, 0);
 };
-document.addEventListener('focusout', () => setTimeout(resetViewport, 60));
 
-/* Beim Tippen mit der iPhone-Tastatur schiebt iOS die ganze Seite hoch.
-   Stattdessen passt sich das App-Gerüst dem sichtbaren Bereich über der
-   Tastatur an: Kopfzeile und Eingabefeld bleiben stehen, die Tab-Leiste
-   wird so lange ausgeblendet. */
+/* Texteingaben: Das Feld wird schon beim Antippen in den oberen Bildschirmbereich
+   geholt. So steht es über der Tastatur, und iOS muss die Seite nicht verschieben. */
+const TEXT_INPUT = 'textarea, input:not([type="date"]):not([type="checkbox"]):not([type="radio"]):not([type="file"])';
+let typingTimer = null;
+document.addEventListener('focusin', (e) => {
+  const t = e.target;
+  if (!t.matches || !t.matches(TEXT_INPUT)) return;
+  clearTimeout(typingTimer);
+  document.body.classList.add('typing');
+  const box = t.closest('.sheet-card, main');
+  if (!box) return;
+  const r = t.getBoundingClientRect();
+  if (r.bottom <= window.innerHeight * 0.42) return;
+  const sticky = $('.sheet-head, .search-top', box);
+  const topEdge = box.getBoundingClientRect().top + (sticky ? sticky.offsetHeight : 0) + 34;
+  box.scrollTop += r.top - topEdge;
+});
+document.addEventListener('focusout', () => {
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => {
+    const a = document.activeElement;
+    if (a && a.matches && a.matches(TEXT_INPUT)) return;   // gleich ins nächste Feld gewechselt
+    document.body.classList.remove('typing');
+    flushPendingRender();
+  }, 260);
+  setTimeout(resetViewport, 60);
+});
+
+/* Sicherheitsnetz: Verschiebt iOS die Seite trotzdem (sichtbarer Bereich beginnt
+   nicht mehr oben), folgt das Gerüst dem sichtbaren Bereich über der Tastatur –
+   Kopfzeile und Eingabefeld bleiben stehen. Ohne Verschiebung ändert sich nichts. */
+let vvTick = false;
 function syncViewport() {
   const vv = window.visualViewport;
-  const root = document.documentElement.style;
   if (!vv) return;
+  const root = document.documentElement.style;
   const keyboard = window.innerHeight - vv.height > 120;
-  // Ohne Tastatur ist das Gerüst per CSS am ganzen Bildschirm verankert (top/bottom 0).
-  root.setProperty('--vv-h', vv.height + 'px');
-  root.setProperty('--vv-top', vv.offsetTop + 'px');
-  document.body.classList.toggle('kb-open', keyboard);
+  const shifted = keyboard && vv.offsetTop > 1;
+  if (shifted) {
+    root.setProperty('--vv-h', vv.height + 'px');
+    root.setProperty('--vv-top', vv.offsetTop + 'px');
+  }
+  document.body.classList.toggle('kb-open', shifted);
   if (!keyboard) setTimeout(resetViewport, 60);
 }
+function queueViewport() {
+  if (vvTick) return;
+  vvTick = true;
+  requestAnimationFrame(() => { vvTick = false; syncViewport(); });
+}
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', syncViewport);
-  window.visualViewport.addEventListener('scroll', syncViewport);
+  window.visualViewport.addEventListener('resize', queueViewport);
+  window.visualViewport.addEventListener('scroll', queueViewport);
 }
 window.addEventListener('orientationchange', () => setTimeout(syncViewport, 300));
-
 syncViewport();
 window.addEventListener('resize', () => {
-  syncViewport();
+  queueViewport();
   const info = $('#screenInfo');
   if (info) info.textContent = screenInfo();
 });
 window.addEventListener('scroll', () => { if (!document.activeElement || !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) resetViewport(); });
-document.addEventListener('gesturestart', (e) => e.preventDefault()); // iOS-Pinch-Zoom aus
 
 /* =========================================================
    START
    ========================================================= */
 
+// Dort weitermachen, wo man zuletzt war (höchstens eine Stunde her)
+try {
+  const last = JSON.parse(localStorage.getItem(NAV_KEY));
+  if (last && TABS.includes(last.tab) && Date.now() - last.t < 3600000) {
+    nav.tab = last.tab;
+    if (last.workout && draft) nav.stack = [{ view: 'workout' }];
+  }
+} catch (e) { /* egal */ }
+
 render();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* Nach einem automatischen Neuladen (Update) an derselben Stelle weitermachen */
+const SCROLL_KEY = 'fightclub-scroll';
+try {
+  const s = JSON.parse(sessionStorage.getItem(SCROLL_KEY));
+  sessionStorage.removeItem(SCROLL_KEY);
+  if (s && Date.now() - s.t < 15000 && s.view === current().view) $('#view').scrollTop = s.y;
+} catch (e) { /* egal */ }
+
+function reloadApp() {
+  try { sessionStorage.setItem(SCROLL_KEY, JSON.stringify({ y: $('#view').scrollTop, view: current().view, t: Date.now() })); } catch (e) { /* egal */ }
+  flushDraft();
+  rememberNav();
+  location.reload();
+}
+
+/* Offline-Speicher (sw.js): Die App startet sofort aus dem Speicher des Geräts, ohne
+   auf das Netz zu warten. Eine neue Version wird im Hintergrund geladen und – solange
+   noch nichts angetippt wurde – gleich übernommen, sonst beim nächsten Öffnen. */
+const bootTime = Date.now();
+let userActed = false;
+document.addEventListener('pointerdown', () => { userActed = true; }, { capture: true, once: true, passive: true });
+let swReg = null;
+let reloadWanted = false;    // „Nach Update suchen“ wurde angetippt
+let updatePending = false;   // neue Version liegt bereit
+let lastUpdateCheck = Date.now();
+const canReload = () => !busyInput() && !$('.scanner');
+
+function applyUpdate(msg) {
+  const quiet = reloadWanted || (!userActed && Date.now() - bootTime < 20000);
+  if (quiet && canReload()) { reloadApp(); return; }
+  if (!updatePending) toast(msg || 'Neue Version geladen – aktiv beim nächsten Öffnen');
+  updatePending = true;
+}
+
+/** Höchste Versionsnummer, die im Speicher des Geräts liegt (Speicher heißen „fightclub-v13“ …). */
+async function storedVersion() {
+  const nums = (await caches.keys()).map((k) => /^fightclub-v(\d+)$/.exec(k)).filter(Boolean).map((m) => Number(m[1]));
+  return nums.length ? Math.max(...nums) : 0;
+}
+
+if ('serviceWorker' in navigator) {
+  let controlled = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', async () => {
+    const first = !controlled;
+    controlled = true;
+    if (first) return;   // allererste Installation: nichts neu zu laden
+    // Läuft diese Seite schon mit der neuesten gespeicherten Version (etwa beim Umstieg
+    // von einer älteren App-Version, die noch aus dem Netz geladen hat), ist nichts zu tun.
+    try { if ((await storedVersion()) <= Number(APP_VERSION)) return; } catch (e) { /* dann neu laden */ }
+    applyUpdate();
+  });
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    if (!e.data || e.data.type !== 'config-changed') return;
+    // config.js wurde geändert (z. B. Zugangsdaten für die Synchronisierung) – höchstens einmal pro Minute neu laden
+    let recent = false;
+    try {
+      recent = Date.now() - Number(sessionStorage.getItem('fightclub-config-reload') || 0) < 60000;
+      sessionStorage.setItem('fightclub-config-reload', String(Date.now()));
+    } catch (err) { /* egal */ }
+    if (!recent) applyUpdate('Einstellungen aktualisiert – aktiv beim nächsten Öffnen');
+  });
+  navigator.serviceWorker.register('sw.js').then((reg) => { swReg = reg; }).catch(() => {});
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    if (updatePending && canReload()) { reloadApp(); return; }
+    if (swReg && Date.now() - lastUpdateCheck > 60000) {
+      lastUpdateCheck = Date.now();
+      swReg.update().catch(() => {});
+    }
+  });
+}
+
+/** Profil → „Nach Update suchen“ */
+async function checkForUpdate() {
+  if (!swReg) { reloadApp(); return; }
+  toast('Suche nach Updates …');
+  reloadWanted = true;
+  lastUpdateCheck = Date.now();
+  try {
+    await Promise.race([
+      swReg.update(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Zeitüberschreitung')), 15000)),
+    ]);
+  } catch (e) {
+    reloadWanted = false;
+    toast('Keine Verbindung – bitte später erneut versuchen');
+    return;
+  }
+  const worker = swReg.installing || swReg.waiting;
+  if (worker) {
+    toast('Update wird geladen …');
+    worker.addEventListener('statechange', () => {
+      if (worker.state !== 'redundant') return;
+      reloadWanted = false;
+      toast('Update konnte nicht geladen werden – bitte später erneut versuchen');
+    });
+    return;
+  }
+  reloadWanted = false;
+  if (updatePending) { reloadApp(); return; }
+  openSheet(`${sheetHead('Fightclub ist aktuell', 'check')}
+    <p class="hint">Du nutzt Version ${APP_VERSION} – eine neuere gibt es nicht.</p>
+    <button class="btn" id="hardReload">${ico('refresh')}App neu laden</button>
+    <p class="hint small center" style="margin-top:10px">Lädt alle Dateien frisch vom Server – hilfreich, falls einmal etwas nicht stimmt. Deine Daten bleiben erhalten.</p>`, () => {
+    $('#hardReload').onclick = hardReload;
+  });
+}
+
+/** Alle Dateien frisch vom Server holen: Speicher der App leeren und neu laden.
+    Vorher wird geprüft, ob der Server erreichbar ist – offline bliebe die App sonst leer. */
+async function hardReload() {
+  toast('Lade neu …');
+  try {
+    const r = await fetch(`index.html?t=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+  } catch (e) {
+    toast('Keine Verbindung – bitte später erneut versuchen');
+    return;
+  }
+  try {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k.startsWith('fightclub-')).map((k) => caches.delete(k)));
+    if (swReg) await swReg.unregister();
+  } catch (e) { /* dann eben nur neu laden */ }
+  closeSheet();
+  reloadApp();
+}
 
 Sync.handleRedirect().then((type) => {
   if (type === 'recovery') { switchTab('profile'); passwordSheet(); }

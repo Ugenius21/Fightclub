@@ -5,9 +5,9 @@
 
    Ein Rezept besteht aus Zutaten (mit Menge) und einer Anzahl
    Portionen. Kalorien und Makros werden für das ganze Gericht und
-   pro Portion berechnet. Zutaten lassen sich nacheinander per
-   Strichcode einscannen: Nach jeder Zutat öffnet sich der Scanner
-   automatisch wieder, bis man auf „Fertig“ tippt.
+   pro Portion berechnet. Zutaten lassen sich suchen oder nacheinander
+   per Strichcode einscannen: Nach jeder gescannten Zutat öffnet sich
+   der Scanner wieder, bis man auf „Fertig“ tippt.
 
    Im Tagebuch verhält sich ein Rezept wie ein Lebensmittel mit
    Portionsgröße (Gesamtgewicht ÷ Portionen).
@@ -19,6 +19,12 @@ const RECIPE_DRAFT_KEY = 'fightclub-recipe-draft';
 
 let recipeDraft = null;
 try { recipeDraft = JSON.parse(localStorage.getItem(RECIPE_DRAFT_KEY)); } catch (e) { recipeDraft = null; }
+if (recipeDraft && !Array.isArray(recipeDraft.items)) recipeDraft = null;
+
+/** Scroll-Stand im Rezept-Formular – nach „Zutat suchen/scannen“ geht es an derselben Stelle weiter. */
+let recipeScroll = 0;
+/** Bei einem ganz neuen Rezept steht die Schreibmarke gleich im Namensfeld. */
+let recipeFocusName = false;
 
 function saveRecipeDraft() {
   try {
@@ -26,6 +32,8 @@ function saveRecipeDraft() {
     else localStorage.removeItem(RECIPE_DRAFT_KEY);
   } catch (e) { /* ignorieren */ }
 }
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
 function recipeTotals(r) {
   const items = r.items || [];
@@ -48,16 +56,16 @@ function recipeFood(r) {
   const per = (x) => (t.weight ? round1((x / t.weight) * 100) : 0);
   return {
     id: 'r-' + r.id, recipeId: r.id, name: r.name || 'Rezept',
-    brand: `Rezept · ${t.servings} Portion${t.servings === 1 ? '' : 'en'}`,
+    brand: `Rezept · ${plural(t.servings, 'Portion', 'Portionen')}`,
     unit: 'g', per100: { kcal: per(t.sum.kcal), p: per(t.sum.p), c: per(t.sum.c), f: per(t.sum.f) },
     serving: t.servingWeight || null, src: 'recipe',
   };
 }
 
 function recipesMatching(q) {
-  const words = norm(q).split(/\s+/).filter(Boolean);
+  const words = foldText(q).split(' ').filter(Boolean);
   return [...data.recipes]
-    .filter((r) => words.every((w) => norm(r.name).includes(w)))
+    .filter((r) => { const hay = foldText(r.name); return words.every((w) => hay.includes(w)); })
     .sort((a, b) => a.name.localeCompare(b.name, 'de'))
     .map(recipeFood);
 }
@@ -67,7 +75,7 @@ function recipeRowHtml(r, attr) {
   return `<button class="food-row" ${attr}>
     <span class="emoji-big">${ico('pot')}</span>
     <div class="grow"><div class="t">${esc(r.name)}</div>
-    <div class="s">${t.servings} Portion${t.servings === 1 ? '' : 'en'} · ${r.items.length} Zutat${r.items.length === 1 ? '' : 'en'} · ${macroLine(t.perServing)} pro Portion</div></div>
+    <div class="s">${plural(t.servings, 'Portion', 'Portionen')} · ${plural(r.items.length, 'Zutat', 'Zutaten')} · ${macroLine(t.perServing)} pro Portion</div></div>
     <b>${fmtNum(t.perServing.kcal, 0)}<small> kcal</small></b></button>`;
 }
 
@@ -79,35 +87,43 @@ function viewRecipes(v) {
     ${recipeDraft ? `<button class="resume" id="rcResume">
       ${ico('pot')}
       <div class="grow"><div class="big">Rezept in Arbeit${recipeDraft.name ? ': ' + esc(recipeDraft.name) : ''}</div>
-      <div class="small">${recipeDraft.items.length} Zutat${recipeDraft.items.length === 1 ? '' : 'en'} · Tippen zum Weitermachen</div></div>
+      <div class="small">${plural(recipeDraft.items.length, 'Zutat', 'Zutaten')} · Tippen zum Weitermachen</div></div>
       <span class="chev">${ico('chevr')}</span></button>` : ''}
     <div class="btn-row">
-      <button class="btn yellow" id="rcScan">${ico('scan')}Per Scan</button>
-      <button class="btn" id="rcNew">${ico('plus')}Neues Rezept</button>
+      <button class="btn yellow" id="rcNew">${ico('plus')}Neues Rezept</button>
+      <button class="btn" id="rcScan">${ico('scan')}Per Scan</button>
     </div>
-    <p class="hint small center" style="margin:10px 0 16px">Beim Scannen öffnet sich die Kamera nach jeder Zutat wieder – so scannst du alle Zutaten nacheinander ein.</p>
-    <div class="panel">${list.length ? list.map((r) => recipeRowHtml(r, `data-rid="${r.id}"`)).join('')
-      : '<p class="hint" style="margin:0">Noch keine Rezepte. Leg Gerichte an, die du oft isst – z. B. dein Frühstücks-Porridge oder Chili con Carne. Danach trägst du sie mit einem Tipp ins Tagebuch ein.</p>'}</div>`;
+    <div class="gap"></div>
+    ${list.length
+      ? `<div class="panel res-list">${list.map((r) => recipeRowHtml(r, `data-rid="${r.id}"`)).join('')}</div>`
+      : `<div class="empty"><div class="big">${ico('pot')}</div><p>Noch keine Rezepte.<br>Leg Gerichte an, die du oft isst – danach trägst du sie mit einem Tipp ins Tagebuch ein.</p></div>`}
+    <p class="hint small center">„Per Scan“ öffnet die Kamera nach jeder Zutat wieder – so scannst du alle Zutaten nacheinander ein.</p>`;
 
-  if ($('#rcResume')) $('#rcResume').onclick = recipeEditor;
+  if ($('#rcResume')) $('#rcResume').onclick = () => { recipeScroll = 0; recipeEditor(); };
   $('#rcNew').onclick = () => { if (startRecipe()) recipeEditor(); };
   $('#rcScan').onclick = () => {
     if (!startRecipe()) return;
+    recipeFocusName = false;
     recipeDraft.scanning = true;
     saveRecipeDraft();
     openScanner(RECIPE);
   };
-  $$('[data-rid]', v).forEach((b) => b.onclick = () => recipeSheet(data.recipes.find((r) => r.id === b.dataset.rid)));
+  $$('[data-rid]', v).forEach((b) => b.onclick = () => {
+    const r = data.recipes.find((x) => x.id === b.dataset.rid);
+    if (r) recipeSheet(r);
+  });
 }
 
 /** Neues Rezept beginnen (oder ein vorhandenes zum Bearbeiten öffnen). */
 function startRecipe(existing) {
+  recipeScroll = 0;
   if (recipeDraft && !(existing && recipeDraft.id === existing.id)) {
     if (!confirm('Es gibt ein angefangenes Rezept. Verwerfen und neu beginnen?')) { recipeEditor(); return false; }
   }
   recipeDraft = existing
     ? { ...JSON.parse(JSON.stringify(existing)), isNew: false }
     : { id: uid(), name: '', servings: 1, items: [], cookedWeight: null, isNew: true };
+  recipeFocusName = !existing;
   saveRecipeDraft();
   return true;
 }
@@ -115,15 +131,15 @@ function startRecipe(existing) {
 function recipeSheet(r) {
   const t = recipeTotals(r);
   openSheet(`
-    <h2>${ico('pot')}${esc(r.name)}</h2>
+    ${sheetHead(esc(r.name), 'pot')}
     <div class="panel recipe-sum">${recipeSumHtml(r)}</div>
+    <button class="btn primary" id="rsAdd">${ico('plus')}Ins Tagebuch · ${fmtNum(t.perServing.kcal, 0)} kcal pro Portion</button>
     <span class="label">Zutaten</span>
-    <div class="panel">${r.items.map((it) => `<div class="food-row"><div class="grow"><div class="t">${esc(it.name)}</div>
+    <div class="panel res-list">${r.items.map((it) => `<div class="food-row"><div class="grow"><div class="t">${esc(it.name)}</div>
       <div class="s">${it.brand ? esc(it.brand) + ' · ' : ''}${fmtNum(it.amount, 0)} ${it.unit || 'g'}</div></div>
       <b>${fmtNum(calcNutrition(it.per100, it.amount).kcal, 0)}</b></div>`).join('')}</div>
-    <button class="btn primary" id="rsAdd">${ico('plus')}Ins Tagebuch (${fmtNum(t.perServing.kcal, 0)} kcal/Portion)</button>
     <button class="btn" id="rsEdit">${ico('edit')}Bearbeiten</button>
-    <button class="btn danger" id="rsDel">Rezept löschen</button>
+    <button class="btn danger" id="rsDel">${ico('trash')}Rezept löschen</button>
   `, () => {
     $('#rsAdd').onclick = () => { foodState.date = foodState.date || todayStr(); portionSheet(recipeFood(r), defaultMeal()); };
     $('#rsEdit').onclick = () => { if (startRecipe(r)) recipeEditor(); };
@@ -136,7 +152,7 @@ function recipeSheet(r) {
 
 function recipeSumHtml(r) {
   const t = recipeTotals(r);
-  if (!r.items.length) return '<p class="hint" style="margin:0">Noch keine Zutaten.</p>';
+  if (!r.items.length) return '<p class="hint">Sobald Zutaten dabei sind, stehen hier Kalorien und Makros pro Portion.</p>';
   return `<div class="row">
     <div class="grow"><div class="hint">Pro Portion${t.servingWeight ? ` · ${fmtNum(t.servingWeight, 0)} g` : ''}</div>
       <div class="big-kcal">${fmtNum(t.perServing.kcal, 0)} kcal</div>
@@ -162,9 +178,9 @@ function recipeEditor() {
   }).join('');
 
   openSheet(`
-    <h2>${ico('pot')}${r.isNew ? 'Neues Rezept' : 'Rezept bearbeiten'}</h2>
-    <label class="lbl">Name</label>
-    <input class="field" id="rcName" value="${esc(r.name)}" placeholder="z. B. Chili con Carne" autocomplete="off" enterkeyhint="done">
+    ${sheetHead(r.isNew ? 'Neues Rezept' : 'Rezept bearbeiten', 'pot')}
+    <label class="lbl" for="rcName">Name</label>
+    <input class="field" id="rcName" value="${esc(r.name)}" placeholder="z. B. Chili con Carne" autocomplete="off" autocapitalize="sentences" enterkeyhint="done">
     <div class="row servings">
       <span class="grow">Portionen</span>
       <button class="ibtn" id="rcMinus" aria-label="Weniger Portionen">${ico('minus')}</button>
@@ -172,33 +188,30 @@ function recipeEditor() {
       <button class="ibtn" id="rcPlus" aria-label="Mehr Portionen">${ico('plus')}</button>
     </div>
     <span class="label">Zutaten (${r.items.length})</span>
-    <div class="panel">${ingRows || '<p class="hint" style="margin:0">Noch keine Zutaten. Scanne sie nacheinander ein oder suche sie.</p>'}</div>
+    ${ingRows ? `<div class="panel res-list">${ingRows}</div>` : '<p class="hint">Noch keine Zutaten. Suche sie oder scanne sie nacheinander ein.</p>'}
     <div class="btn-row">
-      <button class="btn yellow" id="rcScanIng">${ico('scan')}Zutaten scannen</button>
-      <button class="btn" id="rcSearch">${ico('search')}Suchen</button>
+      <button class="btn yellow" id="rcSearch">${ico('search')}Zutat suchen</button>
+      <button class="btn" id="rcScanIng">${ico('scan')}Scannen</button>
     </div>
-    <div style="height:16px"></div>
+    <span class="label">Nährwerte</span>
     <div class="panel recipe-sum" id="rcSum">${recipeSumHtml(r)}</div>
-    <label class="lbl">Gewicht fertig gekocht (optional, in g)<br><span class="hint">Damit stimmt auch die Eingabe in Gramm, wenn beim Kochen Wasser verdampft oder Nudeln Wasser aufnehmen.</span></label>
-    <input class="field" id="rcCooked" inputmode="numeric" value="${r.cookedWeight || ''}" placeholder="${recipeTotals(r).raw ? `Zutaten zusammen: ${fmtNum(recipeTotals(r).raw, 0)} g` : 'z. B. 1200'}">
-    <div style="height:16px"></div>
+    <button class="value-btn" id="rcCooked">${ico('scale')}<span>Gewicht fertig gekocht<br><span class="hint small">freiwillig – für genaue Gramm-Angaben</span></span><b class="${r.cookedWeight ? '' : 'unset'}">${r.cookedWeight ? withUnit(fmtNum(r.cookedWeight, 0) + ' g') : '–'}</b></button>
+    <div class="gap-l"></div>
     <button class="btn primary" id="rcSave">Rezept speichern</button>
-    <button class="btn danger" id="rcDiscard">${r.isNew ? 'Verwerfen' : 'Änderungen verwerfen'}</button>
+    <button class="btn danger" id="rcDiscard">${r.isNew ? 'Rezept verwerfen' : 'Änderungen verwerfen'}</button>
   `, () => {
     const updateSum = () => { $('#rcSum').innerHTML = recipeSumHtml(r); $('#rcServ').textContent = r.servings; };
-    $('#rcName').oninput = (e) => { r.name = e.target.value; saveRecipeDraft(); };
-    $('#rcCooked').oninput = (e) => {
-      const n = parseInt(String(e.target.value).replace(/\D/g, ''), 10);
-      r.cookedWeight = n > 0 ? n : null;
-      saveRecipeDraft(); updateSum();
-    };
+    const name = $('#rcName');
+    name.oninput = () => { r.name = name.value; saveRecipeDraft(); };
+    name.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } });
     $('#rcMinus').onclick = () => { r.servings = Math.max(1, r.servings - 1); saveRecipeDraft(); updateSum(); };
     $('#rcPlus').onclick = () => { r.servings = Math.min(50, r.servings + 1); saveRecipeDraft(); updateSum(); };
     $$('[data-ing]').forEach((b) => b.onclick = () => ingredientPad(Number(b.dataset.ing)));
     $('#rcScanIng').onclick = () => { r.scanning = true; saveRecipeDraft(); openScanner(RECIPE); };
-    $('#rcSearch').onclick = () => addFoodSheet(RECIPE);
+    $('#rcSearch').onclick = () => foodSearch(RECIPE, { focus: true });
+    $('#rcCooked').onclick = cookedWeightPad;
     $('#rcSave').onclick = () => {
-      if (!r.name.trim()) { $('#rcName').focus(); toast('Bitte einen Namen eingeben'); return; }
+      if (!r.name.trim()) { name.focus(); toast('Bitte einen Namen eingeben'); return; }
       if (!r.items.length) { toast('Füge mindestens eine Zutat hinzu'); return; }
       const rec = { id: r.id, name: r.name.trim(), servings: r.servings, cookedWeight: r.cookedWeight || null, items: r.items };
       const i = data.recipes.findIndex((x) => x.id === rec.id);
@@ -213,13 +226,44 @@ function recipeEditor() {
       if (!confirm(r.isNew ? 'Rezept verwerfen?' : 'Änderungen verwerfen?')) return;
       recipeDraft = null; saveRecipeDraft(); closeSheet(); render();
     };
+    // An der Stelle weitermachen, an der man das Formular verlassen hat
+    sheetCard.scrollTop = recipeScroll;
+    sheetCard.onscroll = () => { recipeScroll = sheetCard.scrollTop; };
+    if (recipeFocusName) { recipeFocusName = false; name.focus(); }
+  }, {
+    full: true,
+    // Beim Schließen die Liste auffrischen („Rezept in Arbeit“), sobald nichts mehr offen ist
+    onClose: () => { sheetCard.onscroll = null; pendingRender = true; },
+  });
+}
+
+/** Gewicht des fertigen Gerichts (freiwillig): Beim Kochen verdampft Wasser oder
+    Nudeln und Reis nehmen welches auf – damit stimmt die Eingabe in Gramm trotzdem. */
+function cookedWeightPad() {
+  const r = recipeDraft;
+  if (!r) return;
+  const raw = recipeTotals({ ...r, cookedWeight: null }).raw;
+  const tmp = { g: r.cookedWeight || null };
+  Keypad.open({
+    owner: 'food',
+    fields: [{ key: 'g', label: 'Gewicht', unit: 'g', decimals: 0, int: true, step: 50, get: () => tmp.g, set: (x) => { tmp.g = x; }, fallback: () => raw }],
+    title: () => '<b>Gewicht fertig gekocht</b>',
+    extraHtml: () => `<div class="kp-note">${raw ? `Zutaten zusammen: ${fmtNum(raw, 0)} g. ` : ''}Leer lassen, wenn du das fertige Gericht nicht wiegst.</div>`,
+    okLabel: 'Übernehmen',
+    onCancel: () => recipeEditor(),
+    onDone: () => {
+      r.cookedWeight = tmp.g > 0 ? Math.round(tmp.g) : null;
+      saveRecipeDraft();
+      recipeEditor();
+    },
   });
 }
 
 /** Menge einer Zutat ändern oder sie entfernen. */
 function ingredientPad(i) {
   const r = recipeDraft;
-  const it = r.items[i];
+  const it = r && r.items[i];
+  if (!it) return;
   const tmp = { amount: it.amount };
   const preview = () => { const n = calcNutrition(it.per100, tmp.amount); return `<b>${fmtNum(n.kcal, 0)} kcal</b> · ${macroLine(n)}`; };
   Keypad.open({
@@ -232,9 +276,11 @@ function ingredientPad(i) {
     },
     onChange: () => { const p = $('#kpPreview'); if (p) p.innerHTML = preview(); },
     okLabel: 'Übernehmen',
+    validate: () => (tmp.amount ? '' : 'Bitte eine Menge eingeben'),
     onCancel: () => recipeEditor(),
     onDone: () => {
-      if (tmp.amount) { it.amount = tmp.amount; saveRecipeDraft(); }
+      it.amount = tmp.amount;
+      saveRecipeDraft();
       recipeEditor();
     },
   });
@@ -245,7 +291,7 @@ function addIngredient(food, amount) {
   const r = recipeDraft;
   if (!r) return;
   r.items.push({ name: food.name, brand: food.brand || '', foodId: food.id || null, unit: food.unit || 'g', per100: food.per100, amount });
-  // Gescannte Produkte merken (wie im Tagebuch)
+  // Gescannte und online gefundene Produkte merken (wie im Tagebuch)
   if (food.src === 'off' && food.id && !data.foods.some((f) => f.id === food.id)) {
     const { lastAmount, ...clean } = food;
     data.foods.push(touch({ ...clean }));
